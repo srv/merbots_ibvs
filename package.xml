@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package>
+    <name>merbots_ibvs</name>
+    <version>0.1.0</version>
+    <description>SRV package for image-based visual servoing</description>
+    <author email="emilio.garcia@uib.es">Emilio Garcia-Fidalgo</author>
+    <maintainer email="emilio.garcia@uib.es">Emilio Garcia-Fidalgo</maintainer>
+    <license>GPL</license>
+
+    <buildtool_depend>catkin</buildtool_depend>
+
+    <build_depend>roscpp</build_depend>
+    <build_depend>sensor_msgs</build_depend>
+    <build_depend>image_transport</build_depend>
+    <build_depend>cv_bridge</build_depend>
+
+    <run_depend>roscpp</run_depend>
+    <run_depend>sensor_msgs</run_depend>
+    <run_depend>image_transport</run_depend>
+    <run_depend>cv_bridge</run_depend>
+</package>
