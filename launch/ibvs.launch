@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<launch>
+    <!-- Arguments -->
+    <arg name="namespace" default="/cv_camera" />
+
+    <!-- cv_camera -->
+    <node pkg="cv_camera" type="cv_camera_node" name="cv_camera" output="screen" />
+
+    <!-- Detection and Tracking -->
+    <node pkg="merbots_ibvs" type="ibvs" name="ibvs" output="screen">
+
+        <remap from="~image" to="$(arg namespace)/image_raw" />
+        <remap from="camera_info" to="$(arg namespace)/camera_info" />
+    </node>
+
+</launch>
