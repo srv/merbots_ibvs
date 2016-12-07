@@ -9,8 +9,7 @@
 
     <!-- Detection and Tracking -->
     <node pkg="merbots_ibvs" type="ibvs" name="ibvs" output="screen">
-
-        <remap from="~image" to="$(arg namespace)/image_raw" />
+        <remap from="image" to="$(arg namespace)/image_raw" />
         <remap from="camera_info" to="$(arg namespace)/camera_info" />
     </node>
 
