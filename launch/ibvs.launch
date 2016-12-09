@@ -5,6 +5,7 @@
     <arg name="camera_ns" default="/cv_camera" />
     <arg name="roi_topic" default="/det_and_track/roi" />
     <arg name="control_freq" default="10.0" />
+    <arg name="lambda" default="1.0" />
 
     <!-- cv_camera -->
     <!--node pkg="cv_camera" type="cv_camera_node" name="cv_camera" output="screen" /-->
@@ -13,7 +14,9 @@
     <node pkg="merbots_ibvs" type="ibvs" name="ibvs" output="screen">
 
         <param name="control_freq" value="$(arg control_freq)" />
+        <param name="lambda" value="$(arg lambda)" />
 
+        <remap from="twist" to="/ibvs/twist" />
         <remap from="roi" to="$(arg roi_topic)" />
         <remap from="image" to="$(arg camera_ns)/image_raw" />
         <remap from="camera_info" to="$(arg camera_ns)/camera_info" />
