@@ -8,7 +8,7 @@ file(GLOB_RECURSE SRCS ${CMAKE_CURRENT_SOURCE_DIR} *.cxx *.cpp *.c *.py)
 file(GLOB_RECURSE LNCH ${CMAKE_CURRENT_SOURCE_DIR} *.launch)
 
 # Catkin dependencies
-find_package(catkin REQUIRED COMPONENTS roscpp sensor_msgs geometry_msgs image_transport cv_bridge)
+find_package(catkin REQUIRED COMPONENTS roscpp sensor_msgs geometry_msgs image_transport cv_bridge dynamic_reconfigure)
 
 # System dependencies
 find_package(OpenCV REQUIRED)
@@ -20,11 +20,16 @@ if(OPENMP_FOUND)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
+# Dynamic reconfigure configuration
+generate_dynamic_reconfigure_options(
+        cfg/IBVS.cfg
+)
+
 # Defining the package
 catkin_package(
     INCLUDE_DIRS include
     LIBRARIES
-    CATKIN_DEPENDS roscpp sensor_msgs geometry_msgs image_transport cv_bridge
+    CATKIN_DEPENDS roscpp sensor_msgs geometry_msgs image_transport cv_bridge dynamic_reconfigure
 	DEPENDS OpenCV
 )
 
@@ -42,4 +47,5 @@ add_custom_target(dtarget_merbots_ibvs SOURCES ${HDRS} ${SRCS} ${LNCH})
 add_executable(ibvs
     src/nodes/ibvs.cpp
 )
+add_dependencies(ibvs ${PROJECT_NAME}_gencfg)
 target_link_libraries(ibvs ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${Boost_LIBRARIES})

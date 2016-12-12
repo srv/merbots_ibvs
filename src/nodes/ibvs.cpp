@@ -1,6 +1,8 @@
 #include <boost/thread.hpp>
 
 #include <cv_bridge/cv_bridge.h>
+#include <dynamic_reconfigure/server.h>
+#include <merbots_ibvs/IBVSConfig.h>
 #include <image_transport/image_transport.h>
 #include <geometry_msgs/Twist.h>
 #include <ros/ros.h>
@@ -86,7 +88,16 @@ public:
 
         // Control timer
         control_timer = nh.createTimer(ros::Duration(1.0 / control_freq), &IBVS::ctrltimer_cb, this);
+
+        // Dynamic reconfigure
+        server.setCallback(boost::bind(&IBVS::dynreconf_cb, this, _1, _2));
 	}
+
+    void dynreconf_cb(merbots_ibvs::IBVSConfig& config, uint32_t level)
+    {
+        // Adapting the correspondent parameters dynamically
+        lambda = config.lambda;
+    }
 
     void roi_cb(const sensor_msgs::RegionOfInterestConstPtr& roi_msg)
     {
@@ -225,6 +236,7 @@ private:
     ros::Publisher twist_pub;
     ros::Timer control_timer;
     geometry_msgs::Twist curr_twist;
+    dynamic_reconfigure::Server<merbots_ibvs::IBVSConfig> server;
 
     // Calibration info
     unsigned width;
