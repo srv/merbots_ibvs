@@ -197,11 +197,11 @@ public:
             // --- Computing the motion command ---
             // Filling the error vector
             e(0,0) = pt_tl.x - dpt_tl.x;
-            e(1,0) = pt_tl.y - dpt_tl.y;
+            e(1,0) = -(pt_tl.y - dpt_tl.y);
             e(2,0) = pt_tr.x - dpt_tr.x;
-            e(3,0) = pt_tr.y - dpt_tr.y;
+            e(3,0) = -(pt_tr.y - dpt_tr.y);
             e(4,0) = pt_bl.x - dpt_bl.x;
-            e(5,0) = pt_bl.y - dpt_bl.y;
+            e(5,0) = -(pt_bl.y - dpt_bl.y);
 
             // Computing the velocities
             cv::Mat_<double> vels = -lambda * (L.inv() * e);
