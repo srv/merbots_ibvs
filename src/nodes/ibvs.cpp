@@ -97,7 +97,41 @@ public:
 
         // Control timer
         control_timer = nh.createTimer(ros::Duration(1.0 / control_freq), &IBVS::ctrltimer_cb, this);
+
+        // Target callback
+        target_sub = it.subscribe("target", 0, &IBVS::target_cb, this);
 	}
+
+    // Target callback
+    void target_cb(const sensor_msgs::ImageConstPtr& msg)
+    {
+        // Converting the image message to OpenCV format
+        cv_bridge::CvImageConstPtr cv_ptr;
+        try
+        {
+            cv_ptr = cv_bridge::toCvShare(msg, msg->encoding);
+        }
+        catch (cv_bridge::Exception& e)
+        {
+            ROS_ERROR("Error converting image to OpenCV format: %s", e.what());
+            return;
+        }
+
+        int mid_w = static_cast<int>(width / 2.0);
+        int mid_h = static_cast<int>(height / 2.0);
+
+        int mid_w_roi = static_cast<int>(cv_ptr->image.cols / 2.0);
+        int mid_h_roi = static_cast<int>(cv_ptr->image.rows / 2.0);
+
+        mutex_dpts.lock();
+        dpt_tl.x = mid_w - mid_w_roi;
+        dpt_tl.y = mid_h - mid_h_roi;
+        dpt_tr.x = mid_w + mid_w_roi;
+        dpt_tr.y = mid_h - mid_h_roi;
+        dpt_bl.x = mid_w - mid_w_roi;
+        dpt_bl.y = mid_h + mid_h_roi;
+        mutex_dpts.unlock();
+    }
 
     void dynreconf_cb(merbots_ibvs::IBVSConfig& config, uint32_t level)
     {
@@ -212,13 +246,24 @@ public:
             L(5, 5) = -up3;
 
             // --- Computing the motion command ---
+
+            cv::Point2i dpoint_tl, dpoint_tr, dpoint_bl;
+            // Getting the desired positions
+            mutex_dpts.lock();
+
+            dpoint_tl = dpt_tl;
+            dpoint_tr = dpt_tr;
+            dpoint_bl = dpt_bl;
+
+            mutex_dpts.unlock();
+
             // Filling the error vector
-            e(0,0) = pt_tl.x - dpt_tl.x;
-            e(1,0) = -(pt_tl.y - dpt_tl.y);
-            e(2,0) = pt_tr.x - dpt_tr.x;
-            e(3,0) = -(pt_tr.y - dpt_tr.y);
-            e(4,0) = pt_bl.x - dpt_bl.x;
-            e(5,0) = -(pt_bl.y - dpt_bl.y);
+            e(0,0) = pt_tl.x - dpoint_tl.x;
+            e(1,0) = -(pt_tl.y - dpoint_tl.y);
+            e(2,0) = pt_tr.x - dpoint_tr.x;
+            e(3,0) = -(pt_tr.y - dpoint_tr.y);
+            e(4,0) = pt_bl.x - dpoint_bl.x;
+            e(5,0) = -(pt_bl.y - dpoint_bl.y);
 
             // Computing the velocities
             cv::Mat_<double> vels = -lambda * (L.inv() * e);
@@ -236,17 +281,16 @@ public:
             if (debug)
             {
                 cv::Mat img = cv::Mat::zeros(height, width, CV_8UC(3));
-//                img.create();
 
                 // Lines
-                cv::line(img, pt_tl, dpt_tl, cv::Scalar(255, 255, 255), 2);
-                cv::line(img, pt_tr, dpt_tr, cv::Scalar(255, 255, 255), 2);
-                cv::line(img, pt_bl, dpt_bl, cv::Scalar(255, 255, 255), 2);
+                cv::line(img, pt_tl, dpoint_tl, cv::Scalar(255, 255, 255), 2);
+                cv::line(img, pt_tr, dpoint_tr, cv::Scalar(255, 255, 255), 2);
+                cv::line(img, pt_bl, dpoint_bl, cv::Scalar(255, 255, 255), 2);
 
                 // Printing desired coordinates
-                cv::circle(img, dpt_tl, 3, cv::Scalar(0, 0, 255), -1);
-                cv::circle(img, dpt_tr, 3, cv::Scalar(0, 0, 255), -1);
-                cv::circle(img, dpt_bl, 3, cv::Scalar(0, 0, 255), -1);
+                cv::circle(img, dpoint_tl, 3, cv::Scalar(0, 0, 255), -1);
+                cv::circle(img, dpoint_tr, 3, cv::Scalar(0, 0, 255), -1);
+                cv::circle(img, dpoint_bl, 3, cv::Scalar(0, 0, 255), -1);
 
                 // Printing current coordinates
                 cv::circle(img, pt_tl, 3, cv::Scalar(0, 255, 0), -1);
@@ -255,7 +299,6 @@ public:
 
                 cv::imshow("IBVS", img);
                 cv::waitKey(5);
-//                img.release();
             }
         }
     }
@@ -266,6 +309,7 @@ private:
 	image_transport::ImageTransport it;
     ros::Subscriber roi_sub;
     ros::Publisher twist_pub;
+    image_transport::Subscriber target_sub;
     ros::Timer control_timer;
     geometry_msgs::Twist curr_twist;
     dynamic_reconfigure::Server<merbots_ibvs::IBVSConfig> server;
@@ -280,6 +324,7 @@ private:
 
     // Points used to perform IBVS
     boost::mutex mutex_roi;
+    boost::mutex mutex_dpts;
     cv::Point2i last_pt_tl, last_pt_tr, last_pt_bl;
     cv::Point2i pt_tl, pt_tr, pt_bl;
     cv::Point2i dpt_tl, dpt_tr, dpt_bl;
