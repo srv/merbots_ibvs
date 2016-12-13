@@ -5,6 +5,7 @@
 #include <merbots_ibvs/IBVSConfig.h>
 #include <image_transport/image_transport.h>
 #include <geometry_msgs/Twist.h>
+#include <opencv2/highgui.hpp>
 #include <ros/ros.h>
 #include <sensor_msgs/RegionOfInterest.h>
 
@@ -12,13 +13,14 @@ class IBVS
 {
 public:
 	IBVS() :
-			nh(),
+			nh("~"),
 			it(nh),
             control_freq(10),
             L(6, 6, 0.0),
             e(6, 1, 0.0),
             lambda(1.0),
-            init(false)
+            init(false),
+            debug(false)
 	{
         // Reading calibration information
         ROS_INFO("Waiting for calibration information (10s) ...");
@@ -78,6 +80,10 @@ public:
 
             nh.param("lambda", lambda, 0.2);
             ROS_INFO("[Params] Lambda: %f", lambda);
+
+            // Debug
+            nh.param("debug", debug, true);
+            ROS_INFO("[Params] Debug: %s", debug ? "Yes":"No");
         }
 
         // Subscribing to the topic used to receive ROI's
@@ -86,11 +92,11 @@ public:
         // Publishing twist messages
         twist_pub = nh.advertise<geometry_msgs::Twist>("twist", 1);
 
-        // Control timer
-        control_timer = nh.createTimer(ros::Duration(1.0 / control_freq), &IBVS::ctrltimer_cb, this);
-
         // Dynamic reconfigure
         server.setCallback(boost::bind(&IBVS::dynreconf_cb, this, _1, _2));
+
+        // Control timer
+        control_timer = nh.createTimer(ros::Duration(1.0 / control_freq), &IBVS::ctrltimer_cb, this);
 	}
 
     void dynreconf_cb(merbots_ibvs::IBVSConfig& config, uint32_t level)
@@ -225,6 +231,32 @@ public:
             curr_twist.angular.y = vels(4, 0);
             curr_twist.angular.z = vels(5, 0);
             twist_pub.publish(curr_twist);
+
+            // Showing debug image if needed
+            if (debug)
+            {
+                cv::Mat img = cv::Mat::zeros(height, width, CV_8UC(3));
+//                img.create();
+
+                // Lines
+                cv::line(img, pt_tl, dpt_tl, cv::Scalar(255, 255, 255), 2);
+                cv::line(img, pt_tr, dpt_tr, cv::Scalar(255, 255, 255), 2);
+                cv::line(img, pt_bl, dpt_bl, cv::Scalar(255, 255, 255), 2);
+
+                // Printing desired coordinates
+                cv::circle(img, dpt_tl, 3, cv::Scalar(0, 0, 255), -1);
+                cv::circle(img, dpt_tr, 3, cv::Scalar(0, 0, 255), -1);
+                cv::circle(img, dpt_bl, 3, cv::Scalar(0, 0, 255), -1);
+
+                // Printing current coordinates
+                cv::circle(img, pt_tl, 3, cv::Scalar(0, 255, 0), -1);
+                cv::circle(img, pt_tr, 3, cv::Scalar(0, 255, 0), -1);
+                cv::circle(img, pt_bl, 3, cv::Scalar(0, 255, 0), -1);
+
+                cv::imshow("IBVS", img);
+                cv::waitKey(5);
+//                img.release();
+            }
         }
     }
 
@@ -260,6 +292,8 @@ private:
 
     // Remaining parameters
     bool init;
+    bool debug;
+    cv::Mat debug_img;
 };
 
 int main(int argc, char** argv)
