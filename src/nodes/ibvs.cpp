@@ -7,6 +7,7 @@
 #include <geometry_msgs/Twist.h>
 #include <opencv2/highgui.hpp>
 #include <ros/ros.h>
+#include <sensor_msgs/Range.h>
 #include <sensor_msgs/RegionOfInterest.h>
 
 class IBVS
@@ -19,6 +20,7 @@ public:
             L(6, 6, 0.0),
             e(6, 1, 0.0),
             lambda(1.0),
+            z_dist(1.0),
             init(false),
             debug(false)
 	{
@@ -95,12 +97,25 @@ public:
         // Dynamic reconfigure
         server.setCallback(boost::bind(&IBVS::dynreconf_cb, this, _1, _2));
 
-        // Control timer
-        control_timer = nh.createTimer(ros::Duration(1.0 / control_freq), &IBVS::ctrltimer_cb, this);
-
         // Target callback
         target_sub = it.subscribe("target", 0, &IBVS::target_cb, this);
+
+        // Distance subscriber
+        dist_sub = nh.subscribe("dist", 0, &IBVS::dist_cb, this);
+
+        // Control timer
+        control_timer = nh.createTimer(ros::Duration(1.0 / control_freq), &IBVS::ctrltimer_cb, this);
 	}
+
+    void dist_cb(const sensor_msgs::RangeConstPtr& msg)
+    {
+        mutex_zdist.lock();
+
+        // Receiving new distance
+        z_dist = msg->range;
+
+        mutex_zdist.unlock();
+    }
 
     // Target callback
     void target_cb(const sensor_msgs::ImageConstPtr& msg)
@@ -181,10 +196,13 @@ public:
 
         if (do_control)
         {
-            // TODO Point depth estimation. Currently, we use a fixed value.
-            double z1 = 1.0;
-            double z2 = 1.0;
-            double z3 = 1.0;
+            // Considering all the points at the same distance
+            double z1, z2, z3;
+            mutex_zdist.lock();
+            z1 = z_dist;
+            z2 = z_dist;
+            z3 = z_dist;
+            mutex_zdist.unlock();
 
             // --- Interaction matrix L ---
             // Primes
@@ -268,7 +286,7 @@ public:
             // Computing the velocities
             cv::Mat_<double> vels = -lambda * (L.inv() * e);
 
-            // Filling the message
+            // Filling and publishing the message
             curr_twist.linear.x = vels(0, 0);
             curr_twist.linear.y = vels(1, 0);
             curr_twist.linear.z = vels(2, 0);
@@ -308,6 +326,7 @@ private:
 	ros::NodeHandle nh;
 	image_transport::ImageTransport it;
     ros::Subscriber roi_sub;
+    ros::Subscriber dist_sub;
     ros::Publisher twist_pub;
     image_transport::Subscriber target_sub;
     ros::Timer control_timer;
@@ -330,15 +349,16 @@ private:
     cv::Point2i dpt_tl, dpt_tr, dpt_bl;
 
     // Control parameters
+    boost::mutex mutex_zdist;
     double control_freq;
     cv::Mat_<double> L;
     cv::Mat_<double> e;
     double lambda;
+    double z_dist;
 
     // Remaining parameters
     bool init;
     bool debug;
-    cv::Mat debug_img;
 };
 
 int main(int argc, char** argv)

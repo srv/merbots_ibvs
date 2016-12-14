@@ -4,6 +4,7 @@
     <!-- Arguments -->
     <arg name="camera_ns" default="/cv_camera" />
     <arg name="roi_topic" default="/det_and_track/roi" />
+    <arg name="dist_topic" default="/det_and_track/dist" />
     <arg name="control_freq" default="10.0" />
     <arg name="lambda" default="1.0" />
     <arg name="debug" default="true" />
@@ -21,6 +22,7 @@
         <remap from="twist" to="/ibvs/twist" />
         <remap from="~target" to="/det_and_track/target" />
         <remap from="~roi" to="$(arg roi_topic)" />
+        <remap from="~dist" to="$(arg dist_topic)" />
         <remap from="image" to="$(arg camera_ns)/image_raw" />
         <remap from="camera_info" to="$(arg camera_ns)/camera_info" />
     </node>
