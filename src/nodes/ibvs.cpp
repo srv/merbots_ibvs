@@ -17,9 +17,11 @@ public:
 			nh("~"),
 			it(nh),
             control_freq(10),
-            L(6, 6, 0.0),
-            e(6, 1, 0.0),
-            lambda(1.0),
+            L(2, 6, 0.0),
+            s(2, 1, 0.0),
+            lambda_x(1.0),
+            lambda_y(1.0),
+            lambda_z(1.0),
             z_dist(1.0),
             init(false),
             debug(false)
@@ -50,38 +52,30 @@ public:
             ROS_INFO("Image height: %u", height);
 
             fs = cinfo.K[0];
-            fs_sq = fs * fs;
+            fs_2 = fs * fs;
             ROS_INFO("Focal length: %.2f", fs);
 
             u0 = cinfo.K[2];
             v0 = cinfo.K[5];
             ROS_INFO("Principal point: (%.2f, %.2f)", u0, v0);
 
-            // Computing the desired coordinates of the ROI
-            int factor_w = static_cast<int>(width / 4.0);
-            int factor_h = static_cast<int>(height / 4.0);
-
-            dpt_tl.x = factor_w;
-            dpt_tl.y = factor_h;
-
-            dpt_tr.x = width - factor_w;
-            dpt_tr.y = factor_h;
-
-            dpt_bl.x = factor_w;
-            dpt_bl.y = height - factor_h;
-
-            ROS_INFO("Desired coordinates: (%i, %i), (%i, %i), (%i, %i)",
-                     dpt_tl.x, dpt_tl.y,
-                     dpt_tr.x, dpt_tr.y,
-                     dpt_bl.x, dpt_bl.y
-            );
+            // Computing the desired coordinates of the features
+            des_pt.x = static_cast<int>(width / 2.0);
+            des_pt.y = static_cast<int>(height / 2.0);
+            des_area = 1;
 
             // Reading the remaining parameters
             nh.param("control_freq", control_freq, 10.0);
             ROS_INFO("[Params] Control frequency: %f", control_freq);
 
-            nh.param("lambda", lambda, 0.2);
-            ROS_INFO("[Params] Lambda: %f", lambda);
+            nh.param("lambda_x", lambda_x, 1.0);
+            ROS_INFO("[Params] Lambda X: %f", lambda_x);
+
+            nh.param("lambda_y", lambda_y, 1.0);
+            ROS_INFO("[Params] Lambda Y: %f", lambda_y);
+
+            nh.param("lambda_z", lambda_z, 1.0);
+            ROS_INFO("[Params] Lambda Z: %f", lambda_z);
 
             // Debug
             nh.param("debug", debug, true);
@@ -120,53 +114,38 @@ public:
     // Target callback
     void target_cb(const sensor_msgs::ImageConstPtr& msg)
     {
-        // Converting the image message to OpenCV format
-        cv_bridge::CvImageConstPtr cv_ptr;
-        try
-        {
-            cv_ptr = cv_bridge::toCvShare(msg, msg->encoding);
-        }
-        catch (cv_bridge::Exception& e)
-        {
-            ROS_ERROR("Error converting image to OpenCV format: %s", e.what());
-            return;
-        }
+        mutex_target.lock();
 
-        int mid_w = static_cast<int>(width / 2.0);
-        int mid_h = static_cast<int>(height / 2.0);
+        // Updating the current area
+        des_area = msg->width * msg->height;
 
-        int mid_w_roi = static_cast<int>(cv_ptr->image.cols / 2.0);
-        int mid_h_roi = static_cast<int>(cv_ptr->image.rows / 2.0);
-
-        mutex_dpts.lock();
-        dpt_tl.x = mid_w - mid_w_roi;
-        dpt_tl.y = mid_h - mid_h_roi;
-        dpt_tr.x = mid_w + mid_w_roi;
-        dpt_tr.y = mid_h - mid_h_roi;
-        dpt_bl.x = mid_w - mid_w_roi;
-        dpt_bl.y = mid_h + mid_h_roi;
-        mutex_dpts.unlock();
+        mutex_target.unlock();
     }
 
     void dynreconf_cb(merbots_ibvs::IBVSConfig& config, uint32_t level)
     {
+        mutex_lambdas.lock();
+
         // Adapting the correspondent parameters dynamically
-        lambda = config.lambda;
+        lambda_x = config.lambda_x;
+        lambda_y = config.lambda_y;
+        lambda_z = config.lambda_z;
+
+        mutex_lambdas.unlock();
     }
 
     void roi_cb(const sensor_msgs::RegionOfInterestConstPtr& roi_msg)
     {
         mutex_roi.lock();
 
+        // Mid sizes of the ROI
+        int mid_x = static_cast<int>(roi_msg->width / 2.0);
+        int mid_y = static_cast<int>(roi_msg->height / 2.0);
+
         // Computing the feature points from the ROI
-        last_pt_tl.x = roi_msg->x_offset;
-        last_pt_tl.y = roi_msg->y_offset;
-
-        last_pt_tr.x = roi_msg->x_offset + roi_msg->width;
-        last_pt_tr.y = roi_msg->y_offset;
-
-        last_pt_bl.x = roi_msg->x_offset;
-        last_pt_bl.y = roi_msg->y_offset + roi_msg->height;
+        last_pt.x = roi_msg->x_offset + mid_x;
+        last_pt.y = roi_msg->y_offset + mid_y;
+        last_area = roi_msg->width * roi_msg->height;
 
         if (!init)
         {
@@ -178,121 +157,110 @@ public:
 
     void ctrltimer_cb(const ros::TimerEvent&)
     {
+        // Getting current features and assessing if the control should be done
         bool do_control = false;
-
-        // Copying the current points
+        int u, v, a;
         mutex_roi.lock();
-
-        pt_tl = last_pt_tl;
-        pt_tr = last_pt_tr;
-        pt_bl = last_pt_bl;
-
+        u = last_pt.x;
+        v = last_pt.y;
+        a = last_area;
         if (init)
         {
             do_control = true;
         }
-
         mutex_roi.unlock();
 
+        // If at least one ROI has been received
         if (do_control)
         {
-            // Considering all the points at the same distance
-            double z1, z2, z3;
+            // Getting desired features
+            int u_d, v_d, a_d;
+            mutex_target.lock();
+            u_d = des_pt.x;
+            v_d = des_pt.y;
+            a_d = des_area;
+            mutex_target.unlock();
+
+            // Getting distance to the point
+            double z;
             mutex_zdist.lock();
-            z1 = z_dist;
-            z2 = z_dist;
-            z3 = z_dist;
+            z = z_dist;
             mutex_zdist.unlock();
+
+            // Getting lambdas
+            double lamb_x, lamb_y, lamb_z;
+            mutex_lambdas.lock();
+            lamb_x = lambda_x;
+            lamb_y = lambda_y;
+            lamb_z = lambda_z;
+            mutex_lambdas.unlock();
 
             // --- Interaction matrix L ---
             // Primes
-            double up1 = u0 - pt_tl.x;
-            double vp1 = v0 - pt_tl.y;
-            double up2 = u0 - pt_tr.x;
-            double vp2 = v0 - pt_tr.y;
-            double up3 = u0 - pt_bl.x;
-            double vp3 = v0 - pt_bl.y;
+            double up = u - u0;
+            double vp = v - v0;
 
             // Squared values
-            double up1_sq = up1 * up1;
-            double vp1_sq = vp1 * vp1;
-            double up2_sq = up2 * up2;
-            double vp2_sq = vp2 * vp2;
-            double up3_sq = up3 * up3;
-            double vp3_sq = vp3 * vp3;
+            double up_2 = up * up;
+            double vp_2 = vp * vp;
 
             // L Column 0
-            L(0, 0) = -(fs / z1);
-            L(2, 0) = -(fs / z2);
-            L(4, 0) = -(fs / z3);
+            L(0, 0) = -(fs / z);
 
             // L Column 1
-            L(1, 1) = -(fs / z1);
-            L(3, 1) = -(fs / z2);
-            L(5, 1) = -(fs / z3);
+            L(1, 1) = -(fs / z);
 
             // L Column 2
-            L(0, 2) = up1 / z1;
-            L(1, 2) = vp1 / z1;
-            L(2, 2) = up2 / z2;
-            L(3, 2) = vp2 / z2;
-            L(4, 2) = up3 / z3;
-            L(5, 2) = vp3 / z3;
+            L(0, 2) = up / z;
+            L(1, 2) = vp / z;
 
             // L Column 3
-            L(0, 3) = (up1 * vp1) / fs;
-            L(1, 3) = (fs_sq * vp1_sq) / fs;
-            L(2, 3) = (up2 * vp2) / fs;
-            L(3, 3) = (fs_sq * vp2_sq) / fs;
-            L(4, 3) = (up3 * vp3) / fs;
-            L(5, 3) = (fs_sq * vp3_sq) / fs;
+            L(0, 3) = (up * vp) / fs;
+            L(1, 3) = (fs_2 + vp_2) / fs;
 
             // L Column 4
-            L(0, 4) = -(fs_sq + up1_sq) / fs;
-            L(1, 4) = -(up1 * vp1) / fs;
-            L(2, 4) = -(fs_sq + up2_sq) / fs;
-            L(3, 4) = -(up2 * vp2) / fs;
-            L(4, 4) = -(fs_sq + up3_sq) / fs;
-            L(5, 4) = -(up3 * vp3) / fs;
+            L(0, 4) = -(fs_2 + up_2) / fs;
+            L(1, 4) = -(up * vp) / fs;
 
             // L Column 5
-            L(0, 5) = vp1;
-            L(1, 5) = -up1;
-            L(2, 5) = vp2;
-            L(3, 5) = -up2;
-            L(4, 5) = vp3;
-            L(5, 5) = -up3;
+            L(0, 5) = vp;
+            L(1, 5) = -up;
+
+            // Transforming interaction matrix L into L'
+            // TODO Transformation between system coordinates is needed
+            cv::Mat_<double> Lp = L * cv::Mat::eye(6, 6, CV_64F);
+
+            // Obtaining the required columns from Lp
+            cv::Mat_<double> L_yz(2, 2);
+            Lp.col(1).copyTo(L_yz.col(0));
+            Lp.col(5).copyTo(L_yz.col(1));
+
+            cv::Mat_<double> L_x(2, 1);
+            Lp.col(0).copyTo(L_x.col(0));
 
             // --- Computing the motion command ---
 
-            cv::Point2i dpoint_tl, dpoint_tr, dpoint_bl;
-            // Getting the desired positions
-            mutex_dpts.lock();
+            // Computing linear velocity in x (forward axis)
+            cv::Mat_<double> vx(1, 1, 0.0);
+            if (a > 0 && a_d > 0)
+            {
+                vx(0, 0) = -lamb_x * (log(a) - log(a_d));
+            }
 
-            dpoint_tl = dpt_tl;
-            dpoint_tr = dpt_tr;
-            dpoint_bl = dpt_bl;
+            // Preparing the error vector
+            s(0, 0) = -lamb_y * (u - u_d);
+            s(1, 0) = lamb_z * (v - v_d);
 
-            mutex_dpts.unlock();
-
-            // Filling the error vector
-            e(0,0) = pt_tl.x - dpoint_tl.x;
-            e(1,0) = -(pt_tl.y - dpoint_tl.y);
-            e(2,0) = pt_tr.x - dpoint_tr.x;
-            e(3,0) = -(pt_tr.y - dpoint_tr.y);
-            e(4,0) = pt_bl.x - dpoint_bl.x;
-            e(5,0) = -(pt_bl.y - dpoint_bl.y);
-
-            // Computing the velocities
-            cv::Mat_<double> vels = -lambda * (L.inv() * e);
+            // Computing the yz velocities
+            cv::Mat_<double> vels = L_yz.inv() * (s - L_x * vx);
 
             // Filling and publishing the message
-            curr_twist.linear.x = vels(0, 0);
-            curr_twist.linear.y = vels(1, 0);
-            curr_twist.linear.z = vels(2, 0);
-            curr_twist.angular.x = vels(3, 0);
-            curr_twist.angular.y = vels(4, 0);
-            curr_twist.angular.z = vels(5, 0);
+            curr_twist.linear.x = vx(0, 0);
+            curr_twist.linear.y = vels(0, 0);
+            curr_twist.linear.z = 0.0;
+            curr_twist.angular.x = 0.0;
+            curr_twist.angular.y = 0.0;
+            curr_twist.angular.z = vels(1, 0);
             twist_pub.publish(curr_twist);
 
             // Showing debug image if needed
@@ -301,19 +269,13 @@ public:
                 cv::Mat img = cv::Mat::zeros(height, width, CV_8UC(3));
 
                 // Lines
-                cv::line(img, pt_tl, dpoint_tl, cv::Scalar(255, 255, 255), 2);
-                cv::line(img, pt_tr, dpoint_tr, cv::Scalar(255, 255, 255), 2);
-                cv::line(img, pt_bl, dpoint_bl, cv::Scalar(255, 255, 255), 2);
+                cv::line(img, cv::Point(u, v), cv::Point(u_d, v_d), cv::Scalar(255, 255, 255), 2);
 
                 // Printing desired coordinates
-                cv::circle(img, dpoint_tl, 3, cv::Scalar(0, 0, 255), -1);
-                cv::circle(img, dpoint_tr, 3, cv::Scalar(0, 0, 255), -1);
-                cv::circle(img, dpoint_bl, 3, cv::Scalar(0, 0, 255), -1);
+                cv::circle(img, cv::Point(u_d, v_d), 3, cv::Scalar(0, 0, 255), -1);
 
                 // Printing current coordinates
-                cv::circle(img, pt_tl, 3, cv::Scalar(0, 255, 0), -1);
-                cv::circle(img, pt_tr, 3, cv::Scalar(0, 255, 0), -1);
-                cv::circle(img, pt_bl, 3, cv::Scalar(0, 255, 0), -1);
+                cv::circle(img, cv::Point(u, v), 3, cv::Scalar(0, 255, 0), -1);
 
                 cv::imshow("IBVS", img);
                 cv::waitKey(5);
@@ -337,24 +299,26 @@ private:
     unsigned width;
     unsigned height;
     double fs;
-    double fs_sq;
+    double fs_2;
     double u0;
     double v0;
 
     // Points used to perform IBVS
     boost::mutex mutex_roi;
-    boost::mutex mutex_dpts;
-    cv::Point2i last_pt_tl, last_pt_tr, last_pt_bl;
-    cv::Point2i pt_tl, pt_tr, pt_bl;
-    cv::Point2i dpt_tl, dpt_tr, dpt_bl;
+    cv::Point2i last_pt;
+    int last_area;
+    boost::mutex mutex_target;
+    cv::Point2i des_pt;
+    int des_area;
 
     // Control parameters
     boost::mutex mutex_zdist;
+    double z_dist;
     double control_freq;
     cv::Mat_<double> L;
-    cv::Mat_<double> e;
-    double lambda;
-    double z_dist;
+    cv::Mat_<double> s;
+    boost::mutex mutex_lambdas;
+    double lambda_x, lambda_y, lambda_z;
 
     // Remaining parameters
     bool init;
