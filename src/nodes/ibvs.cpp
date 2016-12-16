@@ -9,6 +9,8 @@
 #include <ros/ros.h>
 #include <sensor_msgs/Range.h>
 #include <sensor_msgs/RegionOfInterest.h>
+#include <tf/transform_datatypes.h>
+#include <tf/transform_listener.h>
 
 class IBVS
 {
@@ -18,6 +20,7 @@ public:
 			it(nh),
             control_freq(10),
             L(2, 6, 0.0),
+            J(6, 6, 0.0),
             s(2, 1, 0.0),
             lambda_x(1.0),
             lambda_y(1.0),
@@ -64,27 +67,73 @@ public:
             des_pt.x = static_cast<int>(width / 2.0);
             des_pt.y = static_cast<int>(height / 2.0);
             des_area = 1;
+        }
 
-            // Reading the remaining parameters
-            nh.param("control_freq", control_freq, 10.0);
-            ROS_INFO("[Params] Control frequency: %f", control_freq);
+        // Reading the remaining parameters
+        nh.param("control_freq", control_freq, 10.0);
+        ROS_INFO("[Params] Control frequency: %f", control_freq);
 
-            nh.param("lambda_x", lambda_x, 1.0);
-            ROS_INFO("[Params] Lambda X: %f", lambda_x);
+        nh.param("lambda_x", lambda_x, 1.0);
+        ROS_INFO("[Params] Lambda X: %f", lambda_x);
 
-            nh.param("lambda_y", lambda_y, 1.0);
-            ROS_INFO("[Params] Lambda Y: %f", lambda_y);
+        nh.param("lambda_y", lambda_y, 1.0);
+        ROS_INFO("[Params] Lambda Y: %f", lambda_y);
 
-            nh.param("lambda_z", lambda_z, 1.0);
-            ROS_INFO("[Params] Lambda Z: %f", lambda_z);
+        nh.param("lambda_z", lambda_z, 1.0);
+        ROS_INFO("[Params] Lambda Z: %f", lambda_z);
 
-            // Debug
-            nh.param("debug", debug, true);
-            ROS_INFO("[Params] Debug: %s", debug ? "Yes":"No");
+        nh.param("debug", debug, true);
+        ROS_INFO("[Params] Debug: %s", debug ? "Yes":"No");
+
+        std::string robot_frame;
+        nh.param<std::string>("robot_frame", robot_frame, "base_link");
+
+        std::string camera_frame;
+        nh.param<std::string>("camera_frame", camera_frame, "camera");
+
+        // Computing the transformation between coordinate systems
+        tf::StampedTransform Trc;
+        try
+        {
+            // Waiting for the static transform
+            tf_listener.waitForTransform(robot_frame, camera_frame, ros::Time(0), ros::Duration(5.0));
+            tf_listener.lookupTransform(robot_frame, camera_frame, ros::Time(0), Trc);
+
+            // Getting and transforming the corresponding components
+            tf::Matrix3x3 rot = Trc.getBasis();
+            cv::Mat_<double> Rrc = cv::Mat::zeros(3, 3, CV_64F);
+            for (int i = 0; i < 3; i++)
+            {
+                for (int j = 0; j < 3; j++)
+                {
+                    Rrc(i, j) = rot[i][j];
+                }
+            }
+
+            tf::Vector3 trans = Trc.getOrigin();
+            double x = trans.getX();
+            double y = trans.getY();
+            double z = trans.getZ();
+            cv::Mat_<double> Skew_trc = cv::Mat::zeros(3, 3, CV_64F);
+            Skew_trc(0, 0) = 0.0; Skew_trc(0, 1) = -z;   Skew_trc(0, 2) = y;
+            Skew_trc(1, 0) = z;   Skew_trc(1, 1) = 0.0;  Skew_trc(1, 2) = -x;
+            Skew_trc(2, 0) = -y;  Skew_trc(2, 1) = x;    Skew_trc(2, 2) = 0.0;
+
+            // Computing the jacobian
+            cv::Mat_<double> Rcr = Rrc.inv();
+            Rcr.copyTo(J.rowRange(0, 3).colRange(0, 3));
+            Rcr.copyTo(J.rowRange(3, 6).colRange(3, 6));
+            cv::Mat_<double> RS = -Rcr * Skew_trc;
+            RS.copyTo(J.rowRange(0, 3).colRange(3, 6));
+        }
+        catch (tf::TransformException ex)
+        {
+            ROS_WARN("Could not get initial transform from camera to robot frame, %s", ex.what());
+            ros::shutdown();
         }
 
         // Subscribing to the topic used to receive ROI's
-        roi_sub = nh.subscribe("roi", 1, &IBVS::roi_cb, this);
+        roi_sub = nh.subscribe("roi", 0, &IBVS::roi_cb, this);
 
         // Publishing twist messages
         twist_pub = nh.advertise<geometry_msgs::Twist>("twist", 1);
@@ -289,8 +338,7 @@ public:
             L(1, 5) = -up;
 
             // Transforming interaction matrix L into L'
-            // TODO Transformation between system coordinates is needed
-            cv::Mat_<double> Lp = L * cv::Mat::eye(6, 6, CV_64F);
+            cv::Mat_<double> Lp = L * J;
 
             // Obtaining the required columns from Lp
             cv::Mat_<double> L_yz(2, 2);
@@ -361,6 +409,7 @@ private:
     image_transport::Subscriber target_sub;
     image_transport::Subscriber img_sub;
     ros::Timer control_timer;
+    tf::TransformListener tf_listener;
     geometry_msgs::Twist curr_twist;
     dynamic_reconfigure::Server<merbots_ibvs::IBVSConfig> server;
 
@@ -387,6 +436,7 @@ private:
     double z_dist;
     double control_freq;
     cv::Mat_<double> L;
+    cv::Mat_<double> J;
     cv::Mat_<double> s;
     boost::mutex mutex_lambdas;
     double lambda_x, lambda_y, lambda_z;

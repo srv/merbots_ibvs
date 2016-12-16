@@ -9,10 +9,15 @@
     <arg name="lambda_x" default="1.0" />
     <arg name="lambda_y" default="1.0" />
     <arg name="lambda_z" default="1.0" />
+    <arg name="robot_frame" default="base_link" />
+    <arg name="camera_frame" default="camera" />
     <arg name="debug" default="true" />
 
     <!-- cv_camera -->
     <!--node pkg="cv_camera" type="cv_camera_node" name="cv_camera" output="screen" /-->
+
+    <!-- Static Transform -->
+    <node pkg="tf" type="static_transform_publisher" name="st_trans" args="0 0 0 0 0 0 base_link camera 40" />
 
     <!-- Detection and Tracking -->
     <node pkg="merbots_ibvs" type="ibvs" name="ibvs" output="screen">
@@ -21,6 +26,8 @@
         <param name="lambda_x" value="$(arg lambda_x)" />
         <param name="lambda_y" value="$(arg lambda_y)" />
         <param name="lambda_z" value="$(arg lambda_z)" />
+        <param name="robot_frame" value="$(arg robot_frame)" />
+        <param name="camera_frame" value="$(arg camera_frame)" />
         <param name="debug" value="$(arg debug)" />
 
         <remap from="twist" to="/ibvs/twist" />
