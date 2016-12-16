@@ -248,11 +248,11 @@ public:
             }
 
             // Preparing the error vector
-            s(0, 0) = -lamb_y * (u - u_d);
+            s(0, 0) = lamb_y * (u - u_d);
             s(1, 0) = lamb_z * (v - v_d);
 
             // Computing the yz velocities
-            cv::Mat_<double> vels = L_yz.inv() * (s - L_x * vx);
+            cv::Mat_<double> vels = L_yz.inv() * (s - (L_x * vx));
 
             // Filling and publishing the message
             curr_twist.linear.x = vx(0, 0);
