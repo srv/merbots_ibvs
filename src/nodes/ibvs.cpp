@@ -23,7 +23,8 @@ public:
             lambda_y(1.0),
             lambda_z(1.0),
             z_dist(1.0),
-            init(false),
+            init_roi(false),
+            init_target(false),
             debug(false)
 	{
         // Reading calibration information
@@ -155,6 +156,11 @@ public:
         des_roi.width = msg->width;
         des_roi.height = msg->height;
 
+        if (!init_target)
+        {
+            init_target = true;
+        }
+
         mutex_target.unlock();
     }
 
@@ -187,9 +193,9 @@ public:
         last_roi.width = roi_msg->width;
         last_roi.height = roi_msg->height;
 
-        if (!init)
+        if (!init_roi)
         {
-            init = true;
+            init_roi = true;
         }
 
         mutex_roi.unlock();
@@ -198,33 +204,45 @@ public:
     void ctrltimer_cb(const ros::TimerEvent&)
     {
         // Getting current features and assessing if the control should be done
-        bool do_control = false;
         int u, v, a;
         cv::Rect roi;
+        bool in_roi = false;
         mutex_roi.lock();
         u = last_pt.x;
         v = last_pt.y;
         a = last_area;
         roi = last_roi;
-        if (init)
+        if (init_roi)
         {
-            do_control = true;
+            in_roi = true;
         }
         mutex_roi.unlock();
 
-        // If at least one ROI has been received
+        // Getting desired features
+        int u_d, v_d, a_d;
+        cv::Rect roi_d;
+        bool in_target = false;
+        mutex_target.lock();
+        u_d = des_pt.x;
+        v_d = des_pt.y;
+        a_d = des_area;
+        roi_d = des_roi;
+        if (init_target)
+        {
+            in_target = true;
+        }
+        mutex_target.unlock();
+
+        // Assessing if the control should be done
+        bool do_control = false;
+        if (in_roi && in_target)
+        {
+            do_control = true;
+        }
+
+        // Controlling the vehicle
         if (do_control)
         {
-            // Getting desired features
-            int u_d, v_d, a_d;
-            cv::Rect roi_d;
-            mutex_target.lock();
-            u_d = des_pt.x;
-            v_d = des_pt.y;
-            a_d = des_area;
-            roi_d = des_roi;
-            mutex_target.unlock();
-
             // Getting distance to the point
             double z;
             mutex_zdist.lock();
@@ -378,7 +396,8 @@ private:
     cv::Mat last_img;
 
     // Remaining parameters
-    bool init;
+    bool init_roi;
+    bool init_target;
     bool debug;
 };
 
