@@ -97,6 +97,12 @@ public:
         // Distance subscriber
         dist_sub = nh.subscribe("dist", 0, &IBVS::dist_cb, this);
 
+        // Image Subscriber for debugging purposes
+        if (debug)
+        {
+            img_sub = it.subscribe("image", 0, &IBVS::image_cb, this);
+        }
+
         // Control timer
         control_timer = nh.createTimer(ros::Duration(1.0 / control_freq), &IBVS::ctrltimer_cb, this);
 	}
@@ -111,13 +117,43 @@ public:
         mutex_zdist.unlock();
     }
 
+    // Image callback
+    void image_cb(const sensor_msgs::ImageConstPtr& msg)
+    {
+        // Converting the image message to OpenCV format
+        cv_bridge::CvImageConstPtr cv_ptr;
+        try
+        {
+            cv_ptr = cv_bridge::toCvShare(msg, msg->encoding);
+        }
+        catch (cv_bridge::Exception& e)
+        {
+            ROS_ERROR("Error converting image to OpenCV format: %s", e.what());
+            return;
+        }
+
+        mutex_img.lock();
+
+        cv_ptr->image.copyTo(last_img);
+
+        mutex_img.unlock();
+    }
+
     // Target callback
     void target_cb(const sensor_msgs::ImageConstPtr& msg)
     {
         mutex_target.lock();
 
-        // Updating the current area
+        // Updating the current desired area
         des_area = msg->width * msg->height;
+
+        // Updating the current desired ROI
+        int mid_x = static_cast<int>(msg->width / 2.0);
+        int mid_y = static_cast<int>(msg->height / 2.0);
+        des_roi.x = des_pt.x - mid_x;
+        des_roi.y = des_pt.y - mid_y;
+        des_roi.width = msg->width;
+        des_roi.height = msg->height;
 
         mutex_target.unlock();
     }
@@ -146,6 +182,10 @@ public:
         last_pt.x = roi_msg->x_offset + mid_x;
         last_pt.y = roi_msg->y_offset + mid_y;
         last_area = roi_msg->width * roi_msg->height;
+        last_roi.x = roi_msg->x_offset;
+        last_roi.y = roi_msg->y_offset;
+        last_roi.width = roi_msg->width;
+        last_roi.height = roi_msg->height;
 
         if (!init)
         {
@@ -160,10 +200,12 @@ public:
         // Getting current features and assessing if the control should be done
         bool do_control = false;
         int u, v, a;
+        cv::Rect roi;
         mutex_roi.lock();
         u = last_pt.x;
         v = last_pt.y;
         a = last_area;
+        roi = last_roi;
         if (init)
         {
             do_control = true;
@@ -175,10 +217,12 @@ public:
         {
             // Getting desired features
             int u_d, v_d, a_d;
+            cv::Rect roi_d;
             mutex_target.lock();
             u_d = des_pt.x;
             v_d = des_pt.y;
             a_d = des_area;
+            roi_d = des_roi;
             mutex_target.unlock();
 
             // Getting distance to the point
@@ -266,7 +310,10 @@ public:
             // Showing debug image if needed
             if (debug)
             {
-                cv::Mat img = cv::Mat::zeros(height, width, CV_8UC(3));
+                cv::Mat img;
+                mutex_img.lock();
+                last_img.copyTo(img);
+                mutex_img.unlock();
 
                 // Lines
                 cv::line(img, cv::Point(u, v), cv::Point(u_d, v_d), cv::Scalar(255, 255, 255), 2);
@@ -276,6 +323,9 @@ public:
 
                 // Printing current coordinates
                 cv::circle(img, cv::Point(u, v), 3, cv::Scalar(0, 255, 0), -1);
+
+                cv::rectangle(img, roi, cv::Scalar(0, 255, 0), 2);
+                cv::rectangle(img, roi_d, cv::Scalar(0, 0, 255), 2);
 
                 cv::imshow("IBVS", img);
                 cv::waitKey(5);
@@ -291,6 +341,7 @@ private:
     ros::Subscriber dist_sub;
     ros::Publisher twist_pub;
     image_transport::Subscriber target_sub;
+    image_transport::Subscriber img_sub;
     ros::Timer control_timer;
     geometry_msgs::Twist curr_twist;
     dynamic_reconfigure::Server<merbots_ibvs::IBVSConfig> server;
@@ -307,9 +358,11 @@ private:
     boost::mutex mutex_roi;
     cv::Point2i last_pt;
     int last_area;
+    cv::Rect last_roi;
     boost::mutex mutex_target;
     cv::Point2i des_pt;
     int des_area;
+    cv::Rect des_roi;
 
     // Control parameters
     boost::mutex mutex_zdist;
@@ -319,6 +372,10 @@ private:
     cv::Mat_<double> s;
     boost::mutex mutex_lambdas;
     double lambda_x, lambda_y, lambda_z;
+
+    // Last received image
+    boost::mutex mutex_img;
+    cv::Mat last_img;
 
     // Remaining parameters
     bool init;
