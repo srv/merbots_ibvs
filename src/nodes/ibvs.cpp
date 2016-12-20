@@ -28,6 +28,7 @@ public:
             z_dist(1.0),
             init_roi(false),
             init_target(false),
+            enable_vely(true),
             debug(false)
 	{
         // Reading calibration information
@@ -81,6 +82,9 @@ public:
 
         nh.param("lambda_z", lambda_z, 1.0);
         ROS_INFO("[Params] Lambda Z: %f", lambda_z);
+
+        nh.param("enable_vely", enable_vely, true);
+        ROS_INFO("[Params] Enable linear Y velocity: %s", enable_vely ? "Yes":"No");
 
         nh.param("debug", debug, true);
         ROS_INFO("[Params] Debug: %s", debug ? "Yes":"No");
@@ -341,9 +345,26 @@ public:
             cv::Mat_<double> Lp = L * J;
 
             // Obtaining the required columns from Lp
-            cv::Mat_<double> L_yz(2, 2);
-            Lp.col(1).copyTo(L_yz.col(0));
-            Lp.col(5).copyTo(L_yz.col(1));
+            cv::Mat_<double> L_yz;
+            cv::Mat_<double> L_yz_inv;
+            if (enable_vely)
+            {
+                // Y velocities can be generated
+                L_yz = cv::Mat::zeros(2, 2, CV_64F);
+                Lp.col(1).copyTo(L_yz.col(0));
+                Lp.col(5).copyTo(L_yz.col(1));
+
+                // Computing the inverse matrix
+                L_yz_inv = L_yz.inv();
+            }
+            else
+            {
+                L_yz = cv::Mat::zeros(2, 1, CV_64F);
+                Lp.col(5).copyTo(L_yz.col(0));
+
+                // In this case, we compute the pseudo-inverse
+                L_yz_inv = (L_yz.t() * L_yz).inv() * L_yz.t();
+            }
 
             cv::Mat_<double> L_x(2, 1);
             Lp.col(0).copyTo(L_x.col(0));
@@ -362,26 +383,43 @@ public:
             s(1, 0) = lamb_z * (v - v_d);
 
             // Computing the yz velocities
-            cv::Mat_<double> vels = L_yz.inv() * (s - (L_x * vx));
+            cv::Mat_<double> vels = L_yz_inv * (s - (L_x * vx));
 
             // Filling and publishing the corresponding message
             auv_msgs::BodyVelocityReq curr_twist;
             curr_twist.header.stamp = ros::Time::now();
             curr_twist.header.frame_id = "ibvs";
+
             curr_twist.goal.requester = "ibvs";
             curr_twist.goal.id = 0;
             curr_twist.goal.priority = auv_msgs::GoalDescriptor::PRIORITY_TELEOPERATION_HIGH; // FIXME
+
             curr_twist.twist.linear.x = vx(0, 0);
-            curr_twist.twist.linear.y = vels(0, 0);
-            curr_twist.twist.linear.z = 0.0;
-            curr_twist.twist.angular.x = 0.0;
-            curr_twist.twist.angular.y = 0.0;
-            curr_twist.twist.angular.z = vels(1, 0);
             curr_twist.disable_axis.x = 0;
-            curr_twist.disable_axis.y = 0;
+            if (enable_vely)
+            {
+                curr_twist.twist.linear.y = vels(0, 0);
+                curr_twist.disable_axis.y = 0;
+            }
+            else
+            {
+                curr_twist.twist.linear.y = 0.0;
+                curr_twist.disable_axis.y = 1;
+            }
+            curr_twist.twist.linear.z = 0.0;
             curr_twist.disable_axis.z = 1;
+            curr_twist.twist.angular.x = 0.0;
             curr_twist.disable_axis.roll = 1;
+            curr_twist.twist.angular.y = 0.0;
             curr_twist.disable_axis.pitch = 1;
+            if (enable_vely)
+            {
+                curr_twist.twist.angular.z = vels(1, 0);
+            }
+            else
+            {
+                curr_twist.twist.angular.z = vels(0, 0);
+            }
             curr_twist.disable_axis.yaw = 0;
             twist_pub.publish(curr_twist);
 
@@ -459,6 +497,7 @@ private:
     // Remaining parameters
     bool init_roi;
     bool init_target;
+    bool enable_vely;
     bool debug;
 };
 

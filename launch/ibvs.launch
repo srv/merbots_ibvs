@@ -11,6 +11,7 @@
     <arg name="lambda_z" default="1.0" />
     <arg name="robot_frame" default="base_link" />
     <arg name="camera_frame" default="camera" />
+    <arg name="enable_vely" default="true" />
     <arg name="debug" default="true" />
 
     <!-- cv_camera -->
@@ -28,6 +29,7 @@
         <param name="lambda_z" value="$(arg lambda_z)" />
         <param name="robot_frame" value="$(arg robot_frame)" />
         <param name="camera_frame" value="$(arg camera_frame)" />
+        <param name="enable_vely" value="$(arg enable_vely)" />
         <param name="debug" value="$(arg debug)" />
 
         <remap from="twist" to="/ibvs/twist" />
