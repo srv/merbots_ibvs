@@ -1,10 +1,10 @@
 #include <boost/thread.hpp>
 
+#include <auv_msgs/BodyVelocityReq.h>
 #include <cv_bridge/cv_bridge.h>
 #include <dynamic_reconfigure/server.h>
 #include <merbots_ibvs/IBVSConfig.h>
 #include <image_transport/image_transport.h>
-#include <geometry_msgs/Twist.h>
 #include <opencv2/highgui.hpp>
 #include <ros/ros.h>
 #include <sensor_msgs/Range.h>
@@ -136,7 +136,7 @@ public:
         roi_sub = nh.subscribe("roi", 0, &IBVS::roi_cb, this);
 
         // Publishing twist messages
-        twist_pub = nh.advertise<geometry_msgs::Twist>("twist", 1);
+        twist_pub = nh.advertise<auv_msgs::BodyVelocityReq>("twist", 1);
 
         // Dynamic reconfigure
         server.setCallback(boost::bind(&IBVS::dynreconf_cb, this, _1, _2));
@@ -364,13 +364,25 @@ public:
             // Computing the yz velocities
             cv::Mat_<double> vels = L_yz.inv() * (s - (L_x * vx));
 
-            // Filling and publishing the message
-            curr_twist.linear.x = vx(0, 0);
-            curr_twist.linear.y = vels(0, 0);
-            curr_twist.linear.z = 0.0;
-            curr_twist.angular.x = 0.0;
-            curr_twist.angular.y = 0.0;
-            curr_twist.angular.z = vels(1, 0);
+            // Filling and publishing the corresponding message
+            auv_msgs::BodyVelocityReq curr_twist;
+            curr_twist.header.stamp = ros::Time::now();
+            curr_twist.header.frame_id = "ibvs";
+            curr_twist.goal.requester = "ibvs";
+            curr_twist.goal.id = 0;
+            curr_twist.goal.priority = auv_msgs::GoalDescriptor::PRIORITY_TELEOPERATION_HIGH; // FIXME
+            curr_twist.twist.linear.x = vx(0, 0);
+            curr_twist.twist.linear.y = vels(0, 0);
+            curr_twist.twist.linear.z = 0.0;
+            curr_twist.twist.angular.x = 0.0;
+            curr_twist.twist.angular.y = 0.0;
+            curr_twist.twist.angular.z = vels(1, 0);
+            curr_twist.disable_axis.x = 0;
+            curr_twist.disable_axis.y = 0;
+            curr_twist.disable_axis.z = 1;
+            curr_twist.disable_axis.roll = 1;
+            curr_twist.disable_axis.pitch = 1;
+            curr_twist.disable_axis.yaw = 0;
             twist_pub.publish(curr_twist);
 
             // Showing debug image if needed
@@ -410,7 +422,6 @@ private:
     image_transport::Subscriber img_sub;
     ros::Timer control_timer;
     tf::TransformListener tf_listener;
-    geometry_msgs::Twist curr_twist;
     dynamic_reconfigure::Server<merbots_ibvs::IBVSConfig> server;
 
     // Calibration info
