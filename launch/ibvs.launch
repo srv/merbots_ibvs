@@ -6,24 +6,37 @@
     <arg name="roi_topic" default="/det_and_track/roi" />
     <arg name="dist_topic" default="/det_and_track/dist" />
     <arg name="control_freq" default="10.0" />
-    <arg name="lambda" default="1.0" />
+    <arg name="lambda_x" default="1.0" />
+    <arg name="lambda_y" default="1.0" />
+    <arg name="lambda_z" default="1.0" />
+    <arg name="robot_frame" default="base_link" />
+    <arg name="camera_frame" default="camera" />
+    <arg name="enable_vely" default="true" />
     <arg name="debug" default="true" />
 
     <!-- cv_camera -->
     <!--node pkg="cv_camera" type="cv_camera_node" name="cv_camera" output="screen" /-->
 
+    <!-- Static Transform -->
+    <node pkg="tf" type="static_transform_publisher" name="st_trans" args="0 0 0 0 0 0 base_link camera 40" />
+
     <!-- Detection and Tracking -->
     <node pkg="merbots_ibvs" type="ibvs" name="ibvs" output="screen">
 
         <param name="control_freq" value="$(arg control_freq)" />
-        <param name="lambda" value="$(arg lambda)" />
+        <param name="lambda_x" value="$(arg lambda_x)" />
+        <param name="lambda_y" value="$(arg lambda_y)" />
+        <param name="lambda_z" value="$(arg lambda_z)" />
+        <param name="robot_frame" value="$(arg robot_frame)" />
+        <param name="camera_frame" value="$(arg camera_frame)" />
+        <param name="enable_vely" value="$(arg enable_vely)" />
         <param name="debug" value="$(arg debug)" />
 
         <remap from="twist" to="/ibvs/twist" />
         <remap from="~target" to="/det_and_track/target" />
         <remap from="~roi" to="$(arg roi_topic)" />
         <remap from="~dist" to="$(arg dist_topic)" />
-        <remap from="image" to="$(arg camera_ns)/image_raw" />
+        <remap from="~image" to="$(arg camera_ns)/image_raw" />
         <remap from="camera_info" to="$(arg camera_ns)/camera_info" />
     </node>
 

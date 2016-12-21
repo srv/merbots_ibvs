@@ -1,14 +1,16 @@
 #include <boost/thread.hpp>
 
+#include <auv_msgs/BodyVelocityReq.h>
 #include <cv_bridge/cv_bridge.h>
 #include <dynamic_reconfigure/server.h>
 #include <merbots_ibvs/IBVSConfig.h>
 #include <image_transport/image_transport.h>
-#include <geometry_msgs/Twist.h>
 #include <opencv2/highgui.hpp>
 #include <ros/ros.h>
 #include <sensor_msgs/Range.h>
 #include <sensor_msgs/RegionOfInterest.h>
+#include <tf/transform_datatypes.h>
+#include <tf/transform_listener.h>
 
 class IBVS
 {
@@ -17,11 +19,16 @@ public:
 			nh("~"),
 			it(nh),
             control_freq(10),
-            L(6, 6, 0.0),
-            e(6, 1, 0.0),
-            lambda(1.0),
+            L(2, 6, 0.0),
+            J(6, 6, 0.0),
+            s(2, 1, 0.0),
+            lambda_x(1.0),
+            lambda_y(1.0),
+            lambda_z(1.0),
             z_dist(1.0),
-            init(false),
+            init_roi(false),
+            init_target(false),
+            enable_vely(true),
             debug(false)
 	{
         // Reading calibration information
@@ -50,49 +57,90 @@ public:
             ROS_INFO("Image height: %u", height);
 
             fs = cinfo.K[0];
-            fs_sq = fs * fs;
+            fs_2 = fs * fs;
             ROS_INFO("Focal length: %.2f", fs);
 
             u0 = cinfo.K[2];
             v0 = cinfo.K[5];
             ROS_INFO("Principal point: (%.2f, %.2f)", u0, v0);
 
-            // Computing the desired coordinates of the ROI
-            int factor_w = static_cast<int>(width / 4.0);
-            int factor_h = static_cast<int>(height / 4.0);
+            // Computing the desired coordinates of the features
+            des_pt.x = static_cast<int>(width / 2.0);
+            des_pt.y = static_cast<int>(height / 2.0);
+            des_area = 1;
+        }
 
-            dpt_tl.x = factor_w;
-            dpt_tl.y = factor_h;
+        // Reading the remaining parameters
+        nh.param("control_freq", control_freq, 10.0);
+        ROS_INFO("[Params] Control frequency: %f", control_freq);
 
-            dpt_tr.x = width - factor_w;
-            dpt_tr.y = factor_h;
+        nh.param("lambda_x", lambda_x, 1.0);
+        ROS_INFO("[Params] Lambda X: %f", lambda_x);
 
-            dpt_bl.x = factor_w;
-            dpt_bl.y = height - factor_h;
+        nh.param("lambda_y", lambda_y, 1.0);
+        ROS_INFO("[Params] Lambda Y: %f", lambda_y);
 
-            ROS_INFO("Desired coordinates: (%i, %i), (%i, %i), (%i, %i)",
-                     dpt_tl.x, dpt_tl.y,
-                     dpt_tr.x, dpt_tr.y,
-                     dpt_bl.x, dpt_bl.y
-            );
+        nh.param("lambda_z", lambda_z, 1.0);
+        ROS_INFO("[Params] Lambda Z: %f", lambda_z);
 
-            // Reading the remaining parameters
-            nh.param("control_freq", control_freq, 10.0);
-            ROS_INFO("[Params] Control frequency: %f", control_freq);
+        nh.param("enable_vely", enable_vely, true);
+        ROS_INFO("[Params] Enable linear Y velocity: %s", enable_vely ? "Yes":"No");
 
-            nh.param("lambda", lambda, 0.2);
-            ROS_INFO("[Params] Lambda: %f", lambda);
+        nh.param("debug", debug, true);
+        ROS_INFO("[Params] Debug: %s", debug ? "Yes":"No");
 
-            // Debug
-            nh.param("debug", debug, true);
-            ROS_INFO("[Params] Debug: %s", debug ? "Yes":"No");
+        std::string robot_frame;
+        nh.param<std::string>("robot_frame", robot_frame, "base_link");
+
+        std::string camera_frame;
+        nh.param<std::string>("camera_frame", camera_frame, "camera");
+
+        // Computing the transformation between coordinate systems
+        tf::StampedTransform Trc;
+        try
+        {
+            // Waiting for the static transform
+            tf_listener.waitForTransform(robot_frame, camera_frame, ros::Time(0), ros::Duration(5.0));
+            tf_listener.lookupTransform(robot_frame, camera_frame, ros::Time(0), Trc);
+
+            // Getting and transforming the corresponding components
+            tf::Matrix3x3 rot = Trc.getBasis();
+            cv::Mat_<double> Rrc = cv::Mat::zeros(3, 3, CV_64F);
+            for (int i = 0; i < 3; i++)
+            {
+                for (int j = 0; j < 3; j++)
+                {
+                    Rrc(i, j) = rot[i][j];
+                }
+            }
+
+            tf::Vector3 trans = Trc.getOrigin();
+            double x = trans.getX();
+            double y = trans.getY();
+            double z = trans.getZ();
+            cv::Mat_<double> Skew_trc = cv::Mat::zeros(3, 3, CV_64F);
+            Skew_trc(0, 0) = 0.0; Skew_trc(0, 1) = -z;   Skew_trc(0, 2) = y;
+            Skew_trc(1, 0) = z;   Skew_trc(1, 1) = 0.0;  Skew_trc(1, 2) = -x;
+            Skew_trc(2, 0) = -y;  Skew_trc(2, 1) = x;    Skew_trc(2, 2) = 0.0;
+
+            // Computing the jacobian
+            cv::Mat_<double> Rcr = Rrc.inv();
+            Rcr.copyTo(J.rowRange(0, 3).colRange(0, 3));
+            Rcr.copyTo(J.rowRange(3, 6).colRange(3, 6));
+            cv::Mat_<double> RS = -Rcr * Skew_trc;
+            RS.copyTo(J.rowRange(0, 3).colRange(3, 6));
+        }
+        catch (tf::TransformException ex)
+        {
+            ROS_WARN("Could not get initial transform from camera to robot frame, %s", ex.what());
+            ros::shutdown();
         }
 
         // Subscribing to the topic used to receive ROI's
-        roi_sub = nh.subscribe("roi", 1, &IBVS::roi_cb, this);
+        roi_sub = nh.subscribe("roi", 0, &IBVS::roi_cb, this);
 
         // Publishing twist messages
-        twist_pub = nh.advertise<geometry_msgs::Twist>("twist", 1);
+        twist_pub = nh.advertise<auv_msgs::BodyVelocityReq>("twist", 1);
 
         // Dynamic reconfigure
         server.setCallback(boost::bind(&IBVS::dynreconf_cb, this, _1, _2));
@@ -102,6 +150,12 @@ public:
 
         // Distance subscriber
         dist_sub = nh.subscribe("dist", 0, &IBVS::dist_cb, this);
+
+        // Image Subscriber for debugging purposes
+        if (debug)
+        {
+            img_sub = it.subscribe("image", 0, &IBVS::image_cb, this);
+        }
 
         // Control timer
         control_timer = nh.createTimer(ros::Duration(1.0 / control_freq), &IBVS::ctrltimer_cb, this);
@@ -117,8 +171,8 @@ public:
         mutex_zdist.unlock();
     }
 
-    // Target callback
-    void target_cb(const sensor_msgs::ImageConstPtr& msg)
+    // Image callback
+    void image_cb(const sensor_msgs::ImageConstPtr& msg)
     {
         // Converting the image message to OpenCV format
         cv_bridge::CvImageConstPtr cv_ptr;
@@ -132,45 +186,69 @@ public:
             return;
         }
 
-        int mid_w = static_cast<int>(width / 2.0);
-        int mid_h = static_cast<int>(height / 2.0);
+        mutex_img.lock();
 
-        int mid_w_roi = static_cast<int>(cv_ptr->image.cols / 2.0);
-        int mid_h_roi = static_cast<int>(cv_ptr->image.rows / 2.0);
+        cv_ptr->image.copyTo(last_img);
 
-        mutex_dpts.lock();
-        dpt_tl.x = mid_w - mid_w_roi;
-        dpt_tl.y = mid_h - mid_h_roi;
-        dpt_tr.x = mid_w + mid_w_roi;
-        dpt_tr.y = mid_h - mid_h_roi;
-        dpt_bl.x = mid_w - mid_w_roi;
-        dpt_bl.y = mid_h + mid_h_roi;
-        mutex_dpts.unlock();
+        mutex_img.unlock();
+    }
+
+    // Target callback
+    void target_cb(const sensor_msgs::ImageConstPtr& msg)
+    {
+        mutex_target.lock();
+
+        // Updating the current desired area
+        des_area = msg->width * msg->height;
+
+        // Updating the current desired ROI
+        int mid_x = static_cast<int>(msg->width / 2.0);
+        int mid_y = static_cast<int>(msg->height / 2.0);
+        des_roi.x = des_pt.x - mid_x;
+        des_roi.y = des_pt.y - mid_y;
+        des_roi.width = msg->width;
+        des_roi.height = msg->height;
+
+        if (!init_target)
+        {
+            init_target = true;
+        }
+
+        mutex_target.unlock();
     }
 
     void dynreconf_cb(merbots_ibvs::IBVSConfig& config, uint32_t level)
     {
+        mutex_lambdas.lock();
+
         // Adapting the correspondent parameters dynamically
-        lambda = config.lambda;
+        lambda_x = config.lambda_x;
+        lambda_y = config.lambda_y;
+        lambda_z = config.lambda_z;
+
+        mutex_lambdas.unlock();
     }
 
     void roi_cb(const sensor_msgs::RegionOfInterestConstPtr& roi_msg)
     {
         mutex_roi.lock();
 
+        // Mid sizes of the ROI
+        int mid_x = static_cast<int>(roi_msg->width / 2.0);
+        int mid_y = static_cast<int>(roi_msg->height / 2.0);
+
         // Computing the feature points from the ROI
-        last_pt_tl.x = roi_msg->x_offset;
-        last_pt_tl.y = roi_msg->y_offset;
+        last_pt.x = roi_msg->x_offset + mid_x;
+        last_pt.y = roi_msg->y_offset + mid_y;
+        last_area = roi_msg->width * roi_msg->height;
+        last_roi.x = roi_msg->x_offset;
+        last_roi.y = roi_msg->y_offset;
+        last_roi.width = roi_msg->width;
+        last_roi.height = roi_msg->height;
 
-        last_pt_tr.x = roi_msg->x_offset + roi_msg->width;
-        last_pt_tr.y = roi_msg->y_offset;
-
-        last_pt_bl.x = roi_msg->x_offset;
-        last_pt_bl.y = roi_msg->y_offset + roi_msg->height;
-
-        if (!init)
+        if (!init_roi)
         {
-            init = true;
+            init_roi = true;
         }
 
         mutex_roi.unlock();
@@ -178,142 +256,192 @@ public:
 
     void ctrltimer_cb(const ros::TimerEvent&)
     {
-        bool do_control = false;
-
-        // Copying the current points
+        // Getting current features and assessing if the control should be done
+        int u, v, a;
+        cv::Rect roi;
+        bool in_roi = false;
         mutex_roi.lock();
+        u = last_pt.x;
+        v = last_pt.y;
+        a = last_area;
+        roi = last_roi;
+        if (init_roi)
+        {
+            in_roi = true;
+        }
+        mutex_roi.unlock();
 
-        pt_tl = last_pt_tl;
-        pt_tr = last_pt_tr;
-        pt_bl = last_pt_bl;
+        // Getting desired features
+        int u_d, v_d, a_d;
+        cv::Rect roi_d;
+        bool in_target = false;
+        mutex_target.lock();
+        u_d = des_pt.x;
+        v_d = des_pt.y;
+        a_d = des_area;
+        roi_d = des_roi;
+        if (init_target)
+        {
+            in_target = true;
+        }
+        mutex_target.unlock();
 
-        if (init)
+        // Assessing if the control should be done
+        bool do_control = false;
+        if (in_roi && in_target)
         {
             do_control = true;
         }
 
-        mutex_roi.unlock();
-
+        // Controlling the vehicle
         if (do_control)
         {
-            // Considering all the points at the same distance
-            double z1, z2, z3;
+            // Getting distance to the point
+            double z;
             mutex_zdist.lock();
-            z1 = z_dist;
-            z2 = z_dist;
-            z3 = z_dist;
+            z = z_dist;
             mutex_zdist.unlock();
+
+            // Getting lambdas
+            double lamb_x, lamb_y, lamb_z;
+            mutex_lambdas.lock();
+            lamb_x = lambda_x;
+            lamb_y = lambda_y;
+            lamb_z = lambda_z;
+            mutex_lambdas.unlock();
 
             // --- Interaction matrix L ---
             // Primes
-            double up1 = u0 - pt_tl.x;
-            double vp1 = v0 - pt_tl.y;
-            double up2 = u0 - pt_tr.x;
-            double vp2 = v0 - pt_tr.y;
-            double up3 = u0 - pt_bl.x;
-            double vp3 = v0 - pt_bl.y;
+            double up = u - u0;
+            double vp = v - v0;
 
             // Squared values
-            double up1_sq = up1 * up1;
-            double vp1_sq = vp1 * vp1;
-            double up2_sq = up2 * up2;
-            double vp2_sq = vp2 * vp2;
-            double up3_sq = up3 * up3;
-            double vp3_sq = vp3 * vp3;
+            double up_2 = up * up;
+            double vp_2 = vp * vp;
 
             // L Column 0
-            L(0, 0) = -(fs / z1);
-            L(2, 0) = -(fs / z2);
-            L(4, 0) = -(fs / z3);
+            L(0, 0) = -(fs / z);
 
             // L Column 1
-            L(1, 1) = -(fs / z1);
-            L(3, 1) = -(fs / z2);
-            L(5, 1) = -(fs / z3);
+            L(1, 1) = -(fs / z);
 
             // L Column 2
-            L(0, 2) = up1 / z1;
-            L(1, 2) = vp1 / z1;
-            L(2, 2) = up2 / z2;
-            L(3, 2) = vp2 / z2;
-            L(4, 2) = up3 / z3;
-            L(5, 2) = vp3 / z3;
+            L(0, 2) = up / z;
+            L(1, 2) = vp / z;
 
             // L Column 3
-            L(0, 3) = (up1 * vp1) / fs;
-            L(1, 3) = (fs_sq * vp1_sq) / fs;
-            L(2, 3) = (up2 * vp2) / fs;
-            L(3, 3) = (fs_sq * vp2_sq) / fs;
-            L(4, 3) = (up3 * vp3) / fs;
-            L(5, 3) = (fs_sq * vp3_sq) / fs;
+            L(0, 3) = (up * vp) / fs;
+            L(1, 3) = (fs_2 + vp_2) / fs;
 
             // L Column 4
-            L(0, 4) = -(fs_sq + up1_sq) / fs;
-            L(1, 4) = -(up1 * vp1) / fs;
-            L(2, 4) = -(fs_sq + up2_sq) / fs;
-            L(3, 4) = -(up2 * vp2) / fs;
-            L(4, 4) = -(fs_sq + up3_sq) / fs;
-            L(5, 4) = -(up3 * vp3) / fs;
+            L(0, 4) = -(fs_2 + up_2) / fs;
+            L(1, 4) = -(up * vp) / fs;
 
             // L Column 5
-            L(0, 5) = vp1;
-            L(1, 5) = -up1;
-            L(2, 5) = vp2;
-            L(3, 5) = -up2;
-            L(4, 5) = vp3;
-            L(5, 5) = -up3;
+            L(0, 5) = vp;
+            L(1, 5) = -up;
+
+            // Transforming interaction matrix L into L'
+            cv::Mat_<double> Lp = L * J;
+
+            // Obtaining the required columns from Lp
+            cv::Mat_<double> L_yz;
+            cv::Mat_<double> L_yz_inv;
+            if (enable_vely)
+            {
+                // Y velocities can be generated
+                L_yz = cv::Mat::zeros(2, 2, CV_64F);
+                Lp.col(1).copyTo(L_yz.col(0));
+                Lp.col(5).copyTo(L_yz.col(1));
+
+                // Computing the inverse matrix
+                L_yz_inv = L_yz.inv();
+            }
+            else
+            {
+                L_yz = cv::Mat::zeros(2, 1, CV_64F);
+                Lp.col(5).copyTo(L_yz.col(0));
+
+                // In this case, we compute the pseudo-inverse
+                L_yz_inv = (L_yz.t() * L_yz).inv() * L_yz.t();
+            }
+
+            cv::Mat_<double> L_x(2, 1);
+            Lp.col(0).copyTo(L_x.col(0));
 
             // --- Computing the motion command ---
 
-            cv::Point2i dpoint_tl, dpoint_tr, dpoint_bl;
-            // Getting the desired positions
-            mutex_dpts.lock();
+            // Computing linear velocity in x (forward axis)
+            cv::Mat_<double> vx(1, 1, 0.0);
+            if (a > 0 && a_d > 0)
+            {
+                vx(0, 0) = -lamb_x * (log(a) - log(a_d));
+            }
 
-            dpoint_tl = dpt_tl;
-            dpoint_tr = dpt_tr;
-            dpoint_bl = dpt_bl;
+            // Preparing the error vector
+            s(0, 0) = -lamb_y * (u - u_d);
+            s(1, 0) = -lamb_z * (v - v_d);
 
-            mutex_dpts.unlock();
+            // Computing the yz velocities
+            cv::Mat_<double> vels = L_yz_inv * (s - (L_x * vx));
 
-            // Filling the error vector
-            e(0,0) = pt_tl.x - dpoint_tl.x;
-            e(1,0) = -(pt_tl.y - dpoint_tl.y);
-            e(2,0) = pt_tr.x - dpoint_tr.x;
-            e(3,0) = -(pt_tr.y - dpoint_tr.y);
-            e(4,0) = pt_bl.x - dpoint_bl.x;
-            e(5,0) = -(pt_bl.y - dpoint_bl.y);
+            // Filling and publishing the corresponding message
+            auv_msgs::BodyVelocityReq curr_twist;
+            curr_twist.header.stamp = ros::Time::now();
+            curr_twist.header.frame_id = "ibvs";
 
-            // Computing the velocities
-            cv::Mat_<double> vels = -lambda * (L.inv() * e);
+            curr_twist.goal.requester = "ibvs";
+            curr_twist.goal.id = 0;
+            curr_twist.goal.priority = auv_msgs::GoalDescriptor::PRIORITY_TELEOPERATION_HIGH; // FIXME
 
-            // Filling and publishing the message
-            curr_twist.linear.x = vels(0, 0);
-            curr_twist.linear.y = vels(1, 0);
-            curr_twist.linear.z = vels(2, 0);
-            curr_twist.angular.x = vels(3, 0);
-            curr_twist.angular.y = vels(4, 0);
-            curr_twist.angular.z = vels(5, 0);
+            curr_twist.twist.linear.x = vx(0, 0);
+            curr_twist.disable_axis.x = 0;
+            if (enable_vely)
+            {
+                curr_twist.twist.linear.y = vels(0, 0);
+                curr_twist.disable_axis.y = 0;
+            }
+            else
+            {
+                curr_twist.twist.linear.y = 0.0;
+                curr_twist.disable_axis.y = 1;
+            }
+            curr_twist.twist.linear.z = 0.0;
+            curr_twist.disable_axis.z = 1;
+            curr_twist.twist.angular.x = 0.0;
+            curr_twist.disable_axis.roll = 1;
+            curr_twist.twist.angular.y = 0.0;
+            curr_twist.disable_axis.pitch = 1;
+            if (enable_vely)
+            {
+                curr_twist.twist.angular.z = vels(1, 0);
+            }
+            else
+            {
+                curr_twist.twist.angular.z = vels(0, 0);
+            }
+            curr_twist.disable_axis.yaw = 0;
             twist_pub.publish(curr_twist);
 
             // Showing debug image if needed
             if (debug)
             {
-                cv::Mat img = cv::Mat::zeros(height, width, CV_8UC(3));
+                cv::Mat img;
+                mutex_img.lock();
+                last_img.copyTo(img);
+                mutex_img.unlock();
 
                 // Lines
-                cv::line(img, pt_tl, dpoint_tl, cv::Scalar(255, 255, 255), 2);
-                cv::line(img, pt_tr, dpoint_tr, cv::Scalar(255, 255, 255), 2);
-                cv::line(img, pt_bl, dpoint_bl, cv::Scalar(255, 255, 255), 2);
+                cv::line(img, cv::Point(u, v), cv::Point(u_d, v_d), cv::Scalar(255, 255, 255), 2);
 
                 // Printing desired coordinates
-                cv::circle(img, dpoint_tl, 3, cv::Scalar(0, 0, 255), -1);
-                cv::circle(img, dpoint_tr, 3, cv::Scalar(0, 0, 255), -1);
-                cv::circle(img, dpoint_bl, 3, cv::Scalar(0, 0, 255), -1);
+                cv::circle(img, cv::Point(u_d, v_d), 3, cv::Scalar(0, 0, 255), -1);
 
                 // Printing current coordinates
-                cv::circle(img, pt_tl, 3, cv::Scalar(0, 255, 0), -1);
-                cv::circle(img, pt_tr, 3, cv::Scalar(0, 255, 0), -1);
-                cv::circle(img, pt_bl, 3, cv::Scalar(0, 255, 0), -1);
+                cv::circle(img, cv::Point(u, v), 3, cv::Scalar(0, 255, 0), -1);
+
+                cv::rectangle(img, roi, cv::Scalar(0, 255, 0), 2);
+                cv::rectangle(img, roi_d, cv::Scalar(0, 0, 255), 2);
 
                 cv::imshow("IBVS", img);
                 cv::waitKey(5);
@@ -329,35 +457,47 @@ private:
     ros::Subscriber dist_sub;
     ros::Publisher twist_pub;
     image_transport::Subscriber target_sub;
+    image_transport::Subscriber img_sub;
     ros::Timer control_timer;
-    geometry_msgs::Twist curr_twist;
+    tf::TransformListener tf_listener;
     dynamic_reconfigure::Server<merbots_ibvs::IBVSConfig> server;
 
     // Calibration info
     unsigned width;
     unsigned height;
     double fs;
-    double fs_sq;
+    double fs_2;
     double u0;
     double v0;
 
     // Points used to perform IBVS
     boost::mutex mutex_roi;
-    boost::mutex mutex_dpts;
-    cv::Point2i last_pt_tl, last_pt_tr, last_pt_bl;
-    cv::Point2i pt_tl, pt_tr, pt_bl;
-    cv::Point2i dpt_tl, dpt_tr, dpt_bl;
+    cv::Point2i last_pt;
+    int last_area;
+    cv::Rect last_roi;
+    boost::mutex mutex_target;
+    cv::Point2i des_pt;
+    int des_area;
+    cv::Rect des_roi;
 
     // Control parameters
     boost::mutex mutex_zdist;
+    double z_dist;
     double control_freq;
     cv::Mat_<double> L;
-    cv::Mat_<double> e;
-    double lambda;
-    double z_dist;
+    cv::Mat_<double> J;
+    cv::Mat_<double> s;
+    boost::mutex mutex_lambdas;
+    double lambda_x, lambda_y, lambda_z;
+
+    // Last received image
+    boost::mutex mutex_img;
+    cv::Mat last_img;
 
     // Remaining parameters
-    bool init;
+    bool init_roi;
+    bool init_target;
+    bool enable_vely;
     bool debug;
 };
 
