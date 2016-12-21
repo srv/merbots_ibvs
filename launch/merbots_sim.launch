@@ -20,9 +20,9 @@
 
     <!-- Visual Servoing params -->
     <arg name="control_freq" default="10.0" />
-    <arg name="lambda_x" default="1.0" />
-    <arg name="lambda_y" default="1.0" />
-    <arg name="lambda_z" default="1.0" />
+    <arg name="lambda_x" default="0.5" />
+    <arg name="lambda_y" default="0.5" />
+    <arg name="lambda_z" default="0.5" />
     <arg name="robot_frame" default="sparus2" />
     <arg name="camera_frame" default="left_optical" />
     <arg name="enable_vely" default="false" />
@@ -62,7 +62,7 @@
         <param name="enable_vely" value="$(arg enable_vely)" />
         <param name="debug" value="$(arg debug)" />
 
-        <remap from="twist" to="/ibvs/twist" />
+        <remap from="~twist" to="/control/body_velocity_req" />
         <remap from="~target" to="/det_and_track/target" />
         <remap from="~roi" to="/det_and_track/roi" />
         <remap from="~dist" to="/sensors/altitud" />
