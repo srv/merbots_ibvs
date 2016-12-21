@@ -19,9 +19,9 @@ public:
 			nh("~"),
 			it(nh),
             control_freq(10),
-            L(2, 6, 0.0),
+            L(6, 6, 0.0),
             J(6, 6, 0.0),
-            s(2, 1, 0.0),
+            s(6, 1, 0.0),
             lambda_x(1.0),
             lambda_y(1.0),
             lambda_z(1.0),
@@ -63,11 +63,6 @@ public:
             u0 = cinfo.K[2];
             v0 = cinfo.K[5];
             ROS_INFO("Principal point: (%.2f, %.2f)", u0, v0);
-
-            // Computing the desired coordinates of the features
-            des_pt.x = static_cast<int>(width / 2.0);
-            des_pt.y = static_cast<int>(height / 2.0);
-            des_area = 1;
         }
 
         // Reading the remaining parameters
@@ -196,16 +191,24 @@ public:
     // Target callback
     void target_cb(const sensor_msgs::ImageConstPtr& msg)
     {
-        mutex_target.lock();
+        int mid_w = static_cast<int>(width / 2.0);
+        int mid_h = static_cast<int>(height / 2.0);
 
-        // Updating the current desired area
-        des_area = msg->width * msg->height;
+        int mid_w_roi = static_cast<int>(msg->width / 2.0);
+        int mid_h_roi = static_cast<int>(msg->height / 2.0);
+
+        mutex_target.lock();
+        // Updating the points
+        des_pt_tl.x = mid_w - mid_w_roi;
+        des_pt_tl.y = mid_h - mid_h_roi;
+        des_pt_tr.x = mid_w + mid_w_roi;
+        des_pt_tr.y = mid_h - mid_h_roi;
+        des_pt_bl.x = mid_w - mid_w_roi;
+        des_pt_bl.y = mid_h + mid_h_roi;
 
         // Updating the current desired ROI
-        int mid_x = static_cast<int>(msg->width / 2.0);
-        int mid_y = static_cast<int>(msg->height / 2.0);
-        des_roi.x = des_pt.x - mid_x;
-        des_roi.y = des_pt.y - mid_y;
+        des_roi.x = des_pt_tl.x;
+        des_roi.y = des_pt_tl.y;
         des_roi.width = msg->width;
         des_roi.height = msg->height;
 
@@ -233,14 +236,15 @@ public:
     {
         mutex_roi.lock();
 
-        // Mid sizes of the ROI
-        int mid_x = static_cast<int>(roi_msg->width / 2.0);
-        int mid_y = static_cast<int>(roi_msg->height / 2.0);
-
         // Computing the feature points from the ROI
-        last_pt.x = roi_msg->x_offset + mid_x;
-        last_pt.y = roi_msg->y_offset + mid_y;
-        last_area = roi_msg->width * roi_msg->height;
+        last_pt_tl.x = roi_msg->x_offset;
+        last_pt_tl.y = roi_msg->y_offset;
+        last_pt_tr.x = roi_msg->x_offset + roi_msg->width;
+        last_pt_tr.y = roi_msg->y_offset;
+        last_pt_bl.x = roi_msg->x_offset;
+        last_pt_bl.y = roi_msg->y_offset + roi_msg->height;
+
+        // Updating the ROI
         last_roi.x = roi_msg->x_offset;
         last_roi.y = roi_msg->y_offset;
         last_roi.width = roi_msg->width;
@@ -254,16 +258,21 @@ public:
         mutex_roi.unlock();
     }
 
-    void ctrltimer_cb(const ros::TimerEvent&)
+    void ctrltimer_cb(const ros::TimerEvent& event)
     {
         // Getting current features and assessing if the control should be done
-        int u, v, a;
+        int u1, v1;
+        int u2, v2;
+        int u3, v3;
         cv::Rect roi;
         bool in_roi = false;
         mutex_roi.lock();
-        u = last_pt.x;
-        v = last_pt.y;
-        a = last_area;
+        u1 = last_pt_tl.x;
+        v1 = last_pt_tl.y;
+        u2 = last_pt_tr.x;
+        v2 = last_pt_tr.y;
+        u3 = last_pt_bl.x;
+        v3 = last_pt_bl.y;
         roi = last_roi;
         if (init_roi)
         {
@@ -272,13 +281,18 @@ public:
         mutex_roi.unlock();
 
         // Getting desired features
-        int u_d, v_d, a_d;
+        int u1_d, v1_d;
+        int u2_d, v2_d;
+        int u3_d, v3_d;
         cv::Rect roi_d;
         bool in_target = false;
         mutex_target.lock();
-        u_d = des_pt.x;
-        v_d = des_pt.y;
-        a_d = des_area;
+        u1_d = des_pt_tl.x;
+        v1_d = des_pt_tl.y;
+        u2_d = des_pt_tr.x;
+        v2_d = des_pt_tr.y;
+        u3_d = des_pt_bl.x;
+        v3_d = des_pt_bl.y;
         roi_d = des_roi;
         if (init_target)
         {
@@ -287,19 +301,16 @@ public:
         mutex_target.unlock();
 
         // Assessing if the control should be done
-        bool do_control = false;
         if (in_roi && in_target)
         {
-            do_control = true;
-        }
-
-        // Controlling the vehicle
-        if (do_control)
-        {
-            // Getting distance to the point
-            double z;
+            // Controlling the vehicle
+            // Getting distance to the points
+            // FIXME We assume all the point are at the same distance
+            double z1, z2, z3;
             mutex_zdist.lock();
-            z = z_dist;
+            z1 = z_dist;
+            z2 = z_dist;
+            z3 = z_dist;
             mutex_zdist.unlock();
 
             // Getting lambdas
@@ -312,80 +323,98 @@ public:
 
             // --- Interaction matrix L ---
             // Primes
-            double up = u - u0;
-            double vp = v - v0;
+            double up1 = u1 - u0;
+            double vp1 = v1 - v0;
+            double up2 = u2 - u0;
+            double vp2 = v2 - v0;
+            double up3 = u3 - u0;
+            double vp3 = v3 - v0;
 
             // Squared values
-            double up_2 = up * up;
-            double vp_2 = vp * vp;
+            double up1_2 = up1 * up1;
+            double vp1_2 = vp1 * vp1;
+            double up2_2 = up2 * up2;
+            double vp2_2 = vp2 * vp2;
+            double up3_2 = up3 * up3;
+            double vp3_2 = vp3 * vp3;
 
             // L Column 0
-            L(0, 0) = -(fs / z);
+            L(0, 0) = -(fs / z1);
+            L(2, 0) = -(fs / z2);
+            L(4, 0) = -(fs / z3);
 
             // L Column 1
-            L(1, 1) = -(fs / z);
+            L(1, 1) = -(fs / z1);
+            L(3, 1) = -(fs / z2);
+            L(5, 1) = -(fs / z3);
 
             // L Column 2
-            L(0, 2) = up / z;
-            L(1, 2) = vp / z;
+            L(0, 2) = up1 / z1;
+            L(1, 2) = vp1 / z1;
+            L(2, 2) = up2 / z2;
+            L(3, 2) = vp2 / z2;
+            L(4, 2) = up3 / z3;
+            L(5, 2) = vp3 / z3;
 
             // L Column 3
-            L(0, 3) = (up * vp) / fs;
-            L(1, 3) = (fs_2 + vp_2) / fs;
+            L(0, 3) = (up1 * vp1) / fs;
+            L(1, 3) = (fs_2 + vp1_2) / fs;
+            L(2, 3) = (up2 * vp2) / fs;
+            L(3, 3) = (fs_2 + vp2_2) / fs;
+            L(4, 3) = (up3 * vp3) / fs;
+            L(5, 3) = (fs_2 + vp3_2) / fs;
 
             // L Column 4
-            L(0, 4) = -(fs_2 + up_2) / fs;
-            L(1, 4) = -(up * vp) / fs;
+            L(0, 4) = -(fs_2 + up1_2) / fs;
+            L(1, 4) = -(up1 * vp1) / fs;
+            L(2, 4) = -(fs_2 + up2_2) / fs;
+            L(3, 4) = -(up2 * vp2) / fs;
+            L(4, 4) = -(fs_2 + up3_2) / fs;
+            L(5, 4) = -(up3 * vp3) / fs;
 
             // L Column 5
-            L(0, 5) = vp;
-            L(1, 5) = -up;
+            L(0, 5) = vp1;
+            L(1, 5) = -up1;
+            L(2, 5) = vp2;
+            L(3, 5) = -up2;
+            L(4, 5) = vp3;
+            L(5, 5) = -up3;
 
             // Transforming interaction matrix L into L'
             cv::Mat_<double> Lp = L * J;
 
-            // Obtaining the required columns from Lp
-            cv::Mat_<double> L_yz;
-            cv::Mat_<double> L_yz_inv;
+            // --- Filling the error vector ---
+            s(0,0) = u1 - u1_d;
+            s(1,0) = v1 - v1_d;
+            s(2,0) = u2 - u2_d;
+            s(3,0) = v2 - v2_d;
+            s(4,0) = u3 - u3_d;
+            s(5,0) = v3 - v3_d;
+
+            // Selecting the corresponding columns of Lp
+            cv::Mat_<double> Lp_s;
             if (enable_vely)
             {
                 // Y velocities can be generated
-                L_yz = cv::Mat::zeros(2, 2, CV_64F);
-                Lp.col(1).copyTo(L_yz.col(0));
-                Lp.col(5).copyTo(L_yz.col(1));
-
-                // Computing the inverse matrix
-                L_yz_inv = L_yz.inv();
+                Lp_s = cv::Mat::zeros(6, 3, CV_64F);
+                Lp.col(0).copyTo(Lp_s.col(0));
+                Lp.col(1).copyTo(Lp_s.col(1));
+                Lp.col(5).copyTo(Lp_s.col(2));
             }
             else
             {
-                L_yz = cv::Mat::zeros(2, 1, CV_64F);
-                Lp.col(5).copyTo(L_yz.col(0));
-
-                // In this case, we compute the pseudo-inverse
-                L_yz_inv = (L_yz.t() * L_yz).inv() * L_yz.t();
+                Lp_s = cv::Mat::zeros(6, 2, CV_64F);
+                Lp.col(0).copyTo(Lp_s.col(0));
+                Lp.col(5).copyTo(Lp_s.col(1));
             }
 
-            cv::Mat_<double> L_x(2, 1);
-            Lp.col(0).copyTo(L_x.col(0));
+            // We compute the pseudoinverse matrix
+            cv::Mat_<double> Lp_s_inv = (Lp_s.t() * Lp_s).inv() * Lp_s.t();
 
             // --- Computing the motion command ---
+            cv::Mat_<double> vels = Lp_s_inv * s;
 
-            // Computing linear velocity in x (forward axis)
-            cv::Mat_<double> vx(1, 1, 0.0);
-            if (a > 0 && a_d > 0)
-            {
-                vx(0, 0) = -lamb_x * (log(a) - log(a_d));
-            }
-
-            // Preparing the error vector
-            s(0, 0) = -lamb_y * (u - u_d);
-            s(1, 0) = -lamb_z * (v - v_d);
-
-            // Computing the yz velocities
-            cv::Mat_<double> vels = L_yz_inv * (s - (L_x * vx));
-
-            // Filling and publishing the corresponding message
+            // --- Filling and publishing the corresponding message ---
             auv_msgs::BodyVelocityReq curr_twist;
             curr_twist.header.stamp = ros::Time::now();
             curr_twist.header.frame_id = "ibvs";
@@ -394,11 +423,11 @@ public:
             curr_twist.goal.id = 0;
             curr_twist.goal.priority = auv_msgs::GoalDescriptor::PRIORITY_TELEOPERATION_HIGH; // FIXME
 
-            curr_twist.twist.linear.x = vx(0, 0);
+            curr_twist.twist.linear.x = -lamb_x * vels(0, 0);
             curr_twist.disable_axis.x = 0;
             if (enable_vely)
             {
-                curr_twist.twist.linear.y = vels(0, 0);
+                curr_twist.twist.linear.y = -lamb_y * vels(1, 0);
                 curr_twist.disable_axis.y = 0;
             }
             else
@@ -414,11 +443,11 @@ public:
             curr_twist.disable_axis.pitch = 1;
             if (enable_vely)
             {
-                curr_twist.twist.angular.z = vels(1, 0);
+                curr_twist.twist.angular.z = -lamb_z * vels(2, 0);
             }
             else
             {
-                curr_twist.twist.angular.z = vels(0, 0);
+                curr_twist.twist.angular.z = -lamb_z * vels(1, 0);
             }
             curr_twist.disable_axis.yaw = 0;
             twist_pub.publish(curr_twist);
@@ -432,16 +461,22 @@ public:
                 mutex_img.unlock();
 
                 // Lines
-                cv::line(img, cv::Point(u, v), cv::Point(u_d, v_d), cv::Scalar(255, 255, 255), 2);
+                cv::line(img, cv::Point(u1, v1), cv::Point(u1_d, v1_d), cv::Scalar(255, 255, 255), 2);
+                cv::line(img, cv::Point(u2, v2), cv::Point(u2_d, v2_d), cv::Scalar(255, 255, 255), 2);
+                cv::line(img, cv::Point(u3, v3), cv::Point(u3_d, v3_d), cv::Scalar(255, 255, 255), 2);
+
+                // Printing current roi
+                cv::rectangle(img, roi, cv::Scalar(0, 255, 0), 2);
 
                 // Printing desired coordinates
-                cv::circle(img, cv::Point(u_d, v_d), 3, cv::Scalar(0, 0, 255), -1);
+                cv::circle(img, cv::Point(u1_d, v1_d), 3, cv::Scalar(0, 0, 255), -1);
+                cv::circle(img, cv::Point(u2_d, v2_d), 3, cv::Scalar(0, 0, 255), -1);
+                cv::circle(img, cv::Point(u3_d, v3_d), 3, cv::Scalar(0, 0, 255), -1);
 
                 // Printing current coordinates
-                cv::circle(img, cv::Point(u, v), 3, cv::Scalar(0, 255, 0), -1);
-
-                cv::rectangle(img, roi, cv::Scalar(0, 255, 0), 2);
-                cv::rectangle(img, roi_d, cv::Scalar(0, 0, 255), 2);
+                cv::circle(img, cv::Point(u1, v1), 3, cv::Scalar(255, 0, 0), -1);
+                cv::circle(img, cv::Point(u2, v2), 3, cv::Scalar(255, 0, 0), -1);
+                cv::circle(img, cv::Point(u3, v3), 3, cv::Scalar(255, 0, 0), -1);
 
                 cv::imshow("IBVS", img);
                 cv::waitKey(5);
@@ -472,12 +507,10 @@ private:
 
     // Points used to perform IBVS
     boost::mutex mutex_roi;
-    cv::Point2i last_pt;
-    int last_area;
+    cv::Point2i last_pt_tl, last_pt_tr, last_pt_bl;
     cv::Rect last_roi;
     boost::mutex mutex_target;
-    cv::Point2i des_pt;
-    int des_area;
+    cv::Point2i des_pt_tl, des_pt_tr, des_pt_bl;
     cv::Rect des_roi;
 
     // Control parameters
