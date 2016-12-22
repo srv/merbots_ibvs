@@ -421,7 +421,7 @@ public:
 
             curr_twist.goal.requester = "ibvs";
             curr_twist.goal.id = 0;
-            curr_twist.goal.priority = auv_msgs::GoalDescriptor::PRIORITY_TELEOPERATION_HIGH; // FIXME
+            curr_twist.goal.priority = auv_msgs::GoalDescriptor::PRIORITY_NORMAL; // FIXME
 
             curr_twist.twist.linear.x = -lamb_x * vels(0, 0);
             curr_twist.disable_axis.x = 0;
