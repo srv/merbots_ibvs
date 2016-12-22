@@ -65,7 +65,7 @@
         <remap from="~twist" to="/control/body_velocity_req" />
         <remap from="~target" to="/det_and_track/target" />
         <remap from="~roi" to="/det_and_track/roi" />
-        <remap from="~dist" to="/sensors/altitud" />
+        <remap from="~dist" to="/sensors/altitude" />
         <remap from="~image" to="$(arg camera_ns)/image_raw" />
         <remap from="camera_info" to="$(arg camera_ns)/camera_info" />
     </node>
