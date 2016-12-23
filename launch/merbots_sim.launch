@@ -9,20 +9,20 @@
     <arg name="detector" default="SIFT" />
     <arg name="descriptor" default="SIFT" />
     <arg name="rep_error" default="3.0" />
-    <arg name="inliers" default="25" />
+    <arg name="inliers" default="35" />
     <arg name="resize" default="0.5" />
     <arg name="target_from_file" default="" />
-    <arg name="det_timer" default="10.0" />
+    <arg name="det_timer" default="15.0" />
     <arg name="use_camera" default="false" />
     <arg name="detect_only" default="false" />
-    <arg name="tracker" default="struck" />
+    <arg name="tracker" default="kcf" />
     <arg name="track_thresh" default="0.8" />
 
     <!-- Visual Servoing params -->
     <arg name="control_freq" default="10.0" />
-    <arg name="lambda_x" default="0.5" />
+    <arg name="lambda_x" default="0.35" />
     <arg name="lambda_y" default="0.5" />
-    <arg name="lambda_z" default="0.5" />
+    <arg name="lambda_z" default="0.425" />
     <arg name="robot_frame" default="sparus2" />
     <arg name="camera_frame" default="left_optical" />
     <arg name="enable_vely" default="false" />
