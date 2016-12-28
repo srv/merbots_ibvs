@@ -25,6 +25,9 @@ public:
             lambda_x(1.0),
             lambda_y(1.0),
             lambda_z(1.0),
+            max_vx(0.6),
+            max_vy(0.3),
+            max_wz(0.25),
             z_dist(1.0),
             init_roi(false),
             init_target(false),
@@ -77,6 +80,15 @@ public:
 
         nh.param("lambda_z", lambda_z, 1.0);
         ROS_INFO("[Params] Lambda Z: %f", lambda_z);
+
+        nh.param("max_vx", max_vx, 0.6);
+        ROS_INFO("[Params] Max linear velocity in X axis: %f", max_vx);
+
+        nh.param("max_vy", max_vy, 0.3);
+        ROS_INFO("[Params] Max linear velocity in Y axis: %f", max_vy);
+
+        nh.param("max_wz", max_wz, 0.25);
+        ROS_INFO("[Params] Max angular velocity around Z axis: %f", max_wz);
 
         nh.param("enable_vely", enable_vely, true);
         ROS_INFO("[Params] Enable linear Y velocity: %s", enable_vely ? "Yes":"No");
@@ -423,8 +435,23 @@ public:
             curr_twist.goal.id = 0;
             curr_twist.goal.priority = auv_msgs::GoalDescriptor::PRIORITY_NORMAL; // FIXME
 
+            // VX
             curr_twist.twist.linear.x = -lamb_x * vels(0, 0);
             curr_twist.disable_axis.x = 0;
+            if (std::abs(curr_twist.twist.linear.x) > max_vx)
+            {
+                // Limiting velocity
+                if (curr_twist.twist.linear.x > 0)
+                {
+                    curr_twist.twist.linear.x = max_vx;
+                }
+                else
+                {
+                    curr_twist.twist.linear.x = -max_vx;
+                }
+            }
+
+            // VY
             if (enable_vely)
             {
                 curr_twist.twist.linear.y = -lamb_y * vels(1, 0);
@@ -435,12 +462,27 @@ public:
                 curr_twist.twist.linear.y = 0.0;
                 curr_twist.disable_axis.y = 1;
             }
+            if (std::abs(curr_twist.twist.linear.y) > max_vy)
+            {
+                // Limiting velocity
+                if (curr_twist.twist.linear.y > 0)
+                {
+                    curr_twist.twist.linear.y = max_vy;
+                }
+                else
+                {
+                    curr_twist.twist.linear.y = -max_vy;
+                }
+            }
+
             curr_twist.twist.linear.z = 0.0;
             curr_twist.disable_axis.z = 1;
             curr_twist.twist.angular.x = 0.0;
             curr_twist.disable_axis.roll = 1;
             curr_twist.twist.angular.y = 0.0;
             curr_twist.disable_axis.pitch = 1;
+
+            // WZ
             if (enable_vely)
             {
                 curr_twist.twist.angular.z = -lamb_z * vels(2, 0);
@@ -450,6 +492,19 @@ public:
                 curr_twist.twist.angular.z = -lamb_z * vels(1, 0);
             }
             curr_twist.disable_axis.yaw = 0;
+            if (std::abs(curr_twist.twist.angular.z) > max_wz)
+            {
+                // Limiting velocity
+                if (curr_twist.twist.angular.z > 0)
+                {
+                    curr_twist.twist.angular.z = max_wz;
+                }
+                else
+                {
+                    curr_twist.twist.angular.z = -max_wz;
+                }
+            }
+
             twist_pub.publish(curr_twist);
 
             // Showing debug image if needed
@@ -522,6 +577,7 @@ private:
     cv::Mat_<double> s;
     boost::mutex mutex_lambdas;
     double lambda_x, lambda_y, lambda_z;
+    double max_vx, max_vy, max_wz;
 
     // Last received image
     boost::mutex mutex_img;
