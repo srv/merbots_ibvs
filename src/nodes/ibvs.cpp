@@ -197,7 +197,6 @@ public:
         {
             last_img = cv::Mat::zeros(last_img.rows, last_img.cols, CV_64F);
         }
-
         mutex_img.unlock();
 
         return true;
@@ -297,7 +296,14 @@ public:
         last_roi.width = roi_msg->width;
         last_roi.height = roi_msg->height;
 
-        if (!init_roi)
+        // Assessing if it is a valid ROI
+        bool valid = last_roi.width > 0 && last_roi.height > 0;
+
+        if (!valid)
+        {
+            init_roi = false;
+        }
+        else if (valid && !init_roi)
         {
             init_roi = true;
         }
