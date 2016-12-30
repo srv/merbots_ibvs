@@ -12,6 +12,8 @@
 #include <tf/transform_datatypes.h>
 #include <tf/transform_listener.h>
 
+#define PI 3.14159265
+
 class IBVS
 {
 public:
@@ -320,9 +322,18 @@ public:
             // FIXME We assume all the point are at the same distance
             double z1, z2, z3;
             mutex_zdist.lock();
-            z1 = z_dist;
-            z2 = z_dist;
-            z3 = z_dist;
+
+			double ta = tan(45*PI/180.0);
+			double ca = cos(45*PI/180.0);
+			double h = z_dist;
+			
+			z1 = (h / ca) * (1.0 - (ta * (v1 - v0)) / (ta * (v1 - v0) + fs));
+			z2 = (h / ca) * (1.0 - (ta * (v2 - v0)) / (ta * (v2 - v0) + fs));
+			z3 = (h / ca) * (1.0 - (ta * (v3 - v0)) / (ta * (v3 - v0) + fs));
+
+//            z1 = z_dist;
+//            z2 = z_dist;
+//            z3 = z_dist;
             mutex_zdist.unlock();
 
             // Getting lambdas
