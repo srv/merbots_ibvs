@@ -12,6 +12,7 @@
     <arg name="max_vx" default="0.6" />
     <arg name="max_vy" default="0.3" />
     <arg name="max_wz" default="0.25" />
+    <arg name="camera_angle" default="45.0" />
     <arg name="robot_frame" default="base_link" />
     <arg name="camera_frame" default="camera" />
     <arg name="enable_vely" default="true" />
@@ -33,6 +34,7 @@
         <param name="max_vx" value="$(arg max_vx)" />
         <param name="max_vy" value="$(arg max_vy)" />
         <param name="max_wz" value="$(arg max_wz)" />
+        <param name="camera_angle" value="$(arg camera_angle)" />
         <param name="robot_frame" value="$(arg robot_frame)" />
         <param name="camera_frame" value="$(arg camera_frame)" />
         <param name="enable_vely" value="$(arg enable_vely)" />

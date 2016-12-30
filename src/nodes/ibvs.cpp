@@ -30,6 +30,7 @@ public:
             max_vx(0.6),
             max_vy(0.3),
             max_wz(0.25),
+            cam_angle(45.0),
             z_dist(1.0),
             init_roi(false),
             init_target(false),
@@ -91,6 +92,13 @@ public:
 
         nh.param("max_wz", max_wz, 0.25);
         ROS_INFO("[Params] Max angular velocity around Z axis: %f", max_wz);
+
+        nh.param("camera_angle", cam_angle, 45.0);
+        ROS_INFO("[Params] Camera angle regarding vertical axis: %f", cam_angle);
+
+        // Computing cosine and tangent of the angle
+        tan_ang = tan(cam_angle * PI / 180.0);
+        cos_ang = cos(cam_angle * PI / 180.0);
 
         nh.param("enable_vely", enable_vely, true);
         ROS_INFO("[Params] Enable linear Y velocity: %s", enable_vely ? "Yes":"No");
@@ -318,23 +326,17 @@ public:
         if (in_roi && in_target)
         {
             // Controlling the vehicle
-            // Getting distance to the points
-            // FIXME We assume all the point are at the same distance
-            double z1, z2, z3;
+            // Getting height of the vehicle
+            double h;
             mutex_zdist.lock();
-
-			double ta = tan(45*PI/180.0);
-			double ca = cos(45*PI/180.0);
-			double h = z_dist;
-			
-			z1 = (h / ca) * (1.0 - (ta * (v1 - v0)) / (ta * (v1 - v0) + fs));
-			z2 = (h / ca) * (1.0 - (ta * (v2 - v0)) / (ta * (v2 - v0) + fs));
-			z3 = (h / ca) * (1.0 - (ta * (v3 - v0)) / (ta * (v3 - v0) + fs));
-
-//            z1 = z_dist;
-//            z2 = z_dist;
-//            z3 = z_dist;
+            h = z_dist;
             mutex_zdist.unlock();
+
+            // Computing the distance of each point
+            double z1, z2, z3;
+			z1 = (h / cos_ang) * (1.0 - (tan_ang * (v1 - v0)) / (tan_ang * (v1 - v0) + fs));
+			z2 = (h / cos_ang) * (1.0 - (tan_ang * (v2 - v0)) / (tan_ang * (v2 - v0) + fs));
+			z3 = (h / cos_ang) * (1.0 - (tan_ang * (v3 - v0)) / (tan_ang * (v3 - v0) + fs));
 
             // Getting lambdas
             double lamb_x, lamb_y, lamb_z;
@@ -589,6 +591,7 @@ private:
     boost::mutex mutex_lambdas;
     double lambda_x, lambda_y, lambda_z;
     double max_vx, max_vy, max_wz;
+    double cam_angle, cos_ang, tan_ang;
 
     // Last received image
     boost::mutex mutex_img;
