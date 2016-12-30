@@ -114,39 +114,41 @@ public:
         nh.param<std::string>("camera_frame", camera_frame, "camera");
 
         // Computing the transformation between coordinate systems
-        tf::StampedTransform Trc;
+        tf::StampedTransform Tcr;
         try
         {
             // Waiting for the static transform
-            tf_listener.waitForTransform(robot_frame, camera_frame, ros::Time(0), ros::Duration(5.0));
-            tf_listener.lookupTransform(robot_frame, camera_frame, ros::Time(0), Trc);
+//            tf_listener.waitForTransform(robot_frame, camera_frame, ros::Time(0), ros::Duration(5.0));
+//            tf_listener.lookupTransform(robot_frame, camera_frame, ros::Time(0), Trc);
+            tf_listener.waitForTransform(camera_frame, robot_frame, ros::Time(0), ros::Duration(5.0));
+            tf_listener.lookupTransform(camera_frame, robot_frame, ros::Time(0), Tcr);
 
             // Getting and transforming the corresponding components
-            tf::Matrix3x3 rot = Trc.getBasis();
-            cv::Mat_<double> Rrc = cv::Mat::zeros(3, 3, CV_64F);
+            tf::Matrix3x3 rot = Tcr.getBasis();
+            cv::Mat_<double> Rcr = cv::Mat::zeros(3, 3, CV_64F);
             for (int i = 0; i < 3; i++)
             {
                 for (int j = 0; j < 3; j++)
                 {
-                    Rrc(i, j) = rot[i][j];
+                    Rcr(i, j) = rot[i][j];
                 }
             }
 
-            tf::Vector3 trans = Trc.getOrigin();
+            tf::Vector3 trans = Tcr.getOrigin();
             double x = trans.getX();
             double y = trans.getY();
             double z = trans.getZ();
-            cv::Mat_<double> Skew_trc = cv::Mat::zeros(3, 3, CV_64F);
-            Skew_trc(0, 0) = 0.0; Skew_trc(0, 1) = -z;   Skew_trc(0, 2) = y;
-            Skew_trc(1, 0) = z;   Skew_trc(1, 1) = 0.0;  Skew_trc(1, 2) = -x;
-            Skew_trc(2, 0) = -y;  Skew_trc(2, 1) = x;    Skew_trc(2, 2) = 0.0;
+            cv::Mat_<double> Skew_tcr = cv::Mat::zeros(3, 3, CV_64F);
+            Skew_tcr(0, 0) = 0.0; Skew_tcr(0, 1) = -z;   Skew_tcr(0, 2) = y;
+            Skew_tcr(1, 0) = z;   Skew_tcr(1, 1) = 0.0;  Skew_tcr(1, 2) = -x;
+            Skew_tcr(2, 0) = -y;  Skew_tcr(2, 1) = x;    Skew_tcr(2, 2) = 0.0;
 
             // Computing the jacobian
-            cv::Mat_<double> Rcr = Rrc.inv();
+//            cv::Mat_<double> Rcr = Rrc.inv();
             Rcr.copyTo(J.rowRange(0, 3).colRange(0, 3));
             Rcr.copyTo(J.rowRange(3, 6).colRange(3, 6));
-            cv::Mat_<double> RS = -Rcr * Skew_trc;
-            RS.copyTo(J.rowRange(0, 3).colRange(3, 6));
+            cv::Mat_<double> SR = Skew_tcr * Rcr;
+            SR.copyTo(J.rowRange(0, 3).colRange(3, 6));
         }
         catch (tf::TransformException ex)
         {
