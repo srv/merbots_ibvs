@@ -8,7 +8,7 @@ file(GLOB_RECURSE SRCS ${CMAKE_CURRENT_SOURCE_DIR} *.cxx *.cpp *.c *.py)
 file(GLOB_RECURSE LNCH ${CMAKE_CURRENT_SOURCE_DIR} *.launch)
 
 # Catkin dependencies
-find_package(catkin REQUIRED COMPONENTS roscpp sensor_msgs geometry_msgs image_transport cv_bridge dynamic_reconfigure tf auv_msgs)
+find_package(catkin REQUIRED COMPONENTS roscpp sensor_msgs geometry_msgs image_transport cv_bridge dynamic_reconfigure tf auv_msgs std_srvs)
 
 # System dependencies
 find_package(OpenCV REQUIRED)
@@ -29,7 +29,7 @@ generate_dynamic_reconfigure_options(
 catkin_package(
     INCLUDE_DIRS
     LIBRARIES
-    CATKIN_DEPENDS roscpp sensor_msgs geometry_msgs image_transport cv_bridge dynamic_reconfigure tf auv_msgs
+    CATKIN_DEPENDS roscpp sensor_msgs geometry_msgs image_transport cv_bridge dynamic_reconfigure tf auv_msgs std_srvs
 	DEPENDS OpenCV
 )
 

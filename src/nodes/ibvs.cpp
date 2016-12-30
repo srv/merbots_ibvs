@@ -9,6 +9,7 @@
 #include <ros/ros.h>
 #include <sensor_msgs/Range.h>
 #include <sensor_msgs/RegionOfInterest.h>
+#include <std_srvs/Empty.h>
 #include <tf/transform_datatypes.h>
 #include <tf/transform_listener.h>
 
@@ -174,9 +175,33 @@ public:
             img_sub = it.subscribe("image", 0, &IBVS::image_cb, this);
         }
 
+        // Service to restart IBVS
+        restart_srv = nh.advertiseService("restart", &IBVS::restart, this);
+
         // Control timer
         control_timer = nh.createTimer(ros::Duration(1.0 / control_freq), &IBVS::ctrltimer_cb, this);
 	}
+
+    bool restart(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res)
+    {
+        mutex_roi.lock();
+        init_roi = false;
+        mutex_roi.unlock();
+
+        mutex_target.lock();
+        init_target = false;
+        mutex_target.unlock();
+
+        mutex_img.lock();
+        if (!last_img.empty())
+        {
+            last_img = cv::Mat::zeros(last_img.rows, last_img.cols, CV_64F);
+        }
+
+        mutex_img.unlock();
+
+        return true;
+    }
 
     void dist_cb(const sensor_msgs::RangeConstPtr& msg)
     {
@@ -563,6 +588,7 @@ private:
     image_transport::Subscriber img_sub;
     ros::Timer control_timer;
     tf::TransformListener tf_listener;
+    ros::ServiceServer restart_srv;
     dynamic_reconfigure::Server<merbots_ibvs::IBVSConfig> server;
 
     // Calibration info
