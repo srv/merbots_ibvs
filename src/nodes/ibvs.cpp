@@ -221,7 +221,7 @@ public:
         cv_bridge::CvImageConstPtr cv_ptr;
         try
         {
-            cv_ptr = cv_bridge::toCvShare(msg, msg->encoding);
+            cv_ptr = cv_bridge::toCvShare(msg, "bgr8");
         }
         catch (cv_bridge::Exception& e)
         {
