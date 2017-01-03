@@ -45,7 +45,8 @@ add_custom_target(dtarget_merbots_ibvs SOURCES ${HDRS} ${SRCS} ${LNCH})
 
 # Image-based Visual Servoing
 add_executable(ibvs
-    src/nodes/ibvs.cpp
+        src/pid/PID.cpp
+        src/nodes/ibvs.cpp
 )
 add_dependencies(ibvs ${PROJECT_NAME}_gencfg)
 target_link_libraries(ibvs ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${Boost_LIBRARIES})
