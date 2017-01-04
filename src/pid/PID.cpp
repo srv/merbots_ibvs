@@ -90,7 +90,7 @@ void PIDController::getCommand(const ros::Time& t, const cv::Mat_<double>& s_p, 
     // Computing PID output
     // Trapezoidal integration
     error_sum = error_sum + (((s_p + last_error) / 2.0) * dt);
-    saturate(error_sum);
+    saturate(error_sum, 2);
 
     // Updating the last error
     s_p.copyTo(last_error);
