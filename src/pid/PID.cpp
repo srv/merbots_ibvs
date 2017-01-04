@@ -81,7 +81,7 @@ void PIDController::getCommand(const ros::Time& t, const cv::Mat_<double>& s_p, 
     double dt = computeDeltaTime(t);
 
     // Derivative
-    cv::Mat_<double> derror;
+    cv::Mat_<double> derror = cv::Mat::zeros(6, 1, CV_64F);
     if (last_error(0, 0) != std::numeric_limits<double>::max())
     {
         derror = (s_p - last_error) / dt;
