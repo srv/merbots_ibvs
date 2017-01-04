@@ -38,7 +38,7 @@ catkin_package(
 ###########
 
 # Including directories.
-include_directories(${catkin_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
+include_directories(src ${catkin_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
 
 # Custom target to include headers and launch files in QtCreator
 add_custom_target(dtarget_merbots_ibvs SOURCES ${HDRS} ${SRCS} ${LNCH})
