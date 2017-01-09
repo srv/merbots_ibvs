@@ -4,11 +4,11 @@
 #include <cv_bridge/cv_bridge.h>
 #include <dynamic_reconfigure/server.h>
 #include <merbots_ibvs/IBVSConfig.h>
+#include <merbots_tracking/TargetPoints.h>
 #include <image_transport/image_transport.h>
 #include <opencv2/highgui.hpp>
 #include <ros/ros.h>
 #include <sensor_msgs/Range.h>
-#include <sensor_msgs/RegionOfInterest.h>
 #include <std_srvs/Empty.h>
 #include <tf/transform_datatypes.h>
 #include <tf/transform_listener.h>
@@ -34,6 +34,7 @@ public:
             cam_angle(45.0),
             z_dist(1.0),
             init_roi(false),
+            last_roi_valid(false),
             init_target(false),
             enable_vely(true),
             debug(false)
@@ -280,32 +281,32 @@ public:
         mutex_lambdas.unlock();
     }
 
-    void roi_cb(const sensor_msgs::RegionOfInterestConstPtr& roi_msg)
+    void roi_cb(const merbots_tracking::TargetPointsConstPtr& roi_msg)
     {
         mutex_roi.lock();
 
         // Computing the feature points from the ROI
-        last_pt_tl.x = roi_msg->x_offset;
-        last_pt_tl.y = roi_msg->y_offset;
-        last_pt_tr.x = roi_msg->x_offset + roi_msg->width;
-        last_pt_tr.y = roi_msg->y_offset;
-        last_pt_bl.x = roi_msg->x_offset;
-        last_pt_bl.y = roi_msg->y_offset + roi_msg->height;
+        last_pt_tl.x = static_cast<int>(roi_msg->point_tl.x);
+        last_pt_tl.y = static_cast<int>(roi_msg->point_tl.y);
+        last_pt_tr.x = static_cast<int>(roi_msg->point_tr.x);
+        last_pt_tr.y = static_cast<int>(roi_msg->point_tr.y);
+        last_pt_bl.x = static_cast<int>(roi_msg->point_bl.x);
+        last_pt_bl.y = static_cast<int>(roi_msg->point_bl.y);
 
         // Updating the ROI
-        last_roi.x = roi_msg->x_offset;
-        last_roi.y = roi_msg->y_offset;
-        last_roi.width = roi_msg->width;
-        last_roi.height = roi_msg->height;
+        last_roi.x = last_pt_tl.x;
+        last_roi.y = last_pt_tl.y;
+        last_roi.width = last_pt_tr.x - last_pt_tl.x;
+        last_roi.height = last_pt_bl.y - last_pt_tl.y;
 
         // Assessing if it is a valid ROI
-        bool valid = last_roi.width > 0 && last_roi.height > 0;
+        last_roi_valid = roi_msg->exists_roi;
 
-        if (!valid)
+        if (!last_roi_valid)
         {
             init_roi = false;
         }
-        else if (valid && !init_roi)
+        else if (last_roi_valid && !init_roi)
         {
             init_roi = true;
         }
@@ -321,6 +322,7 @@ public:
         int u3, v3;
         cv::Rect roi;
         bool in_roi = false;
+        bool valid_roi = false;
         mutex_roi.lock();
         u1 = last_pt_tl.x;
         v1 = last_pt_tl.y;
@@ -333,6 +335,7 @@ public:
         {
             in_roi = true;
         }
+        valid_roi = last_roi_valid;
         mutex_roi.unlock();
 
         // Getting desired features
@@ -567,7 +570,7 @@ public:
                 cv::line(img, cv::Point(u3, v3), cv::Point(u3_d, v3_d), cv::Scalar(255, 255, 255), 2);
 
                 // Printing current roi
-                cv::rectangle(img, roi, cv::Scalar(0, 255, 0), 2);
+                //cv::rectangle(img, roi, cv::Scalar(0, 255, 0), 2);
 
                 // Printing desired coordinates
                 cv::circle(img, cv::Point(u1_d, v1_d), 3, cv::Scalar(0, 0, 255), -1);
@@ -611,6 +614,7 @@ private:
     boost::mutex mutex_roi;
     cv::Point2i last_pt_tl, last_pt_tr, last_pt_bl;
     cv::Rect last_roi;
+    bool last_roi_valid;
     boost::mutex mutex_target;
     cv::Point2i des_pt_tl, des_pt_tr, des_pt_bl;
     cv::Rect des_roi;
