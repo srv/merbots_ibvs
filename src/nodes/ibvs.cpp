@@ -58,18 +58,43 @@ public:
 
             ROS_INFO("Calibration data:");
 
+            // Get the binning factors
+            int binning_x = cinfo.binning_x;
+            int binning_y = cinfo.binning_y;
+
             width = cinfo.width;
+            if (binning_x > 1)
+            {
+                width /= binning_x;
+            }
             ROS_INFO("Image width: %u", width);
 
             height = cinfo.height;
+            if (binning_y > 1)
+            {
+                height /= binning_y;
+            }
             ROS_INFO("Image height: %u", height);
 
             fs = cinfo.K[0];
+            if (binning_x > 1)
+            {
+                fs /= binning_x;
+            }
             fs_2 = fs * fs;
             ROS_INFO("Focal length: %.2f", fs);
 
             u0 = cinfo.K[2];
+            if (binning_x > 1)
+            {
+                u0 /= binning_x;
+            }
+
             v0 = cinfo.K[5];
+            if (binning_y > 1)
+            {
+                v0 /= binning_y;
+            }
             ROS_INFO("Principal point: (%.2f, %.2f)", u0, v0);
         }
 

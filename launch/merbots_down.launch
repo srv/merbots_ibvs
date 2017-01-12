@@ -3,7 +3,7 @@
 <launch>
     <!-- Common params -->
     <arg name="max_vel" default="0.3"/>
-    <arg name="camera_ns" default="/stereo_down/left" />
+    <arg name="camera_ns" default="/stereo_down/scaled_x2/right" />
     <arg name="image" default="image_rect_color" />
     <arg name="debug" default="false" />
 
@@ -22,9 +22,9 @@
 
     <!-- Visual Servoing params -->
     <arg name="control_freq" default="10.0" />
-    <arg name="lambda_x" default="0.7" />
-    <arg name="lambda_y" default="0.4" />
-    <arg name="lambda_z" default="0.9" />
+    <arg name="lambda_vx" default="0.3" />
+    <arg name="lambda_vy" default="0.0" />
+    <arg name="lambda_wz" default="0.3" />
     <arg name="max_vx" default="$(arg max_vel)" />
     <arg name="max_vy" default="$(arg max_vel)" />
     <arg name="max_wz" default="$(arg max_vel)" />
@@ -32,9 +32,6 @@
     <arg name="robot_frame" default="sparus2" />
     <arg name="camera_frame" default="left_optical" />
     <arg name="enable_vely" default="false" />
-
-    <!-- Image proc -->
-    <node ns="$(arg camera_ns)" pkg="image_proc" type="image_proc" name="image_proc" output="screen"/>
 
     <!-- Target Selector -->
     <node pkg="merbots_tracking" type="target_selector" name="target_selector" output="screen">
@@ -63,9 +60,9 @@
     <!-- Visual Servoing -->
     <node pkg="merbots_ibvs" type="ibvs" name="ibvs" output="screen">
         <param name="control_freq" value="$(arg control_freq)" />
-        <param name="lambda_x" value="$(arg lambda_x)" />
-        <param name="lambda_y" value="$(arg lambda_y)" />
-        <param name="lambda_z" value="$(arg lambda_z)" />
+        <param name="lambda_x" value="$(arg lambda_vx)" />
+        <param name="lambda_y" value="$(arg lambda_vy)" />
+        <param name="lambda_z" value="$(arg lambda_wz)" />
         <param name="max_vx" value="$(arg max_vx)" />
         <param name="max_vy" value="$(arg max_vy)" />
         <param name="max_wz" value="$(arg max_wz)" />
@@ -75,7 +72,7 @@
         <param name="enable_vely" value="$(arg enable_vely)" />
         <param name="debug" value="$(arg debug)" />
 
-        <remap from="~twist" to="/control/body_velocity_req_test" />
+        <remap from="~twist" to="/control/body_velocity_req" />
         <remap from="~target" to="/det_and_track/target" />
         <remap from="~roi" to="/det_and_track/roi" />
         <remap from="~dist" to="/sensors/altitude" />
