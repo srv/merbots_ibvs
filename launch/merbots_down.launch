@@ -2,9 +2,11 @@
 
 <launch>
     <!-- Common params -->
-    <arg name="camera_ns" default="/stereo_down/left/" />
+    <arg name="max_vel" default="0.3"/>
+    <arg name="camera_ns" default="/stereo_down/scaled_x2/right" />
+    <arg name="image" default="image_rect_color" />
     <arg name="target_from_file" default="" />
-    <arg name="debug" default="true" />
+    <arg name="debug" default="false" />
 
     <!-- Tracking params -->
     <arg name="detector" default="SIFT" />
@@ -21,20 +23,20 @@
 
     <!-- Visual Servoing params -->
     <arg name="control_freq" default="10.0" />
-    <arg name="lambda_x" default="0.35" />
-    <arg name="lambda_y" default="0.4" />
-    <arg name="lambda_z" default="0.6" />
-    <arg name="max_vx" default="0.6" />
-    <arg name="max_vy" default="0.5" />
-    <arg name="max_wz" default="0.5" />
-    <arg name="camera_angle" default="45.0" />
+    <arg name="lambda_vx" default="0.3" />
+    <arg name="lambda_vy" default="0.0" />
+    <arg name="lambda_wz" default="0.3" />
+    <arg name="max_vx" default="$(arg max_vel)" />
+    <arg name="max_vy" default="$(arg max_vel)" />
+    <arg name="max_wz" default="$(arg max_vel)" />
+    <arg name="camera_angle" default="0" /> <!-- angle WRT vertical -->
     <arg name="robot_frame" default="sparus2" />
     <arg name="camera_frame" default="left_optical" />
     <arg name="enable_vely" default="false" />
 
     <!-- Target Selector -->
     <node pkg="merbots_tracking" type="target_selector" name="target_selector" output="screen">
-        <remap from="~image" to="$(arg camera_ns)/image_raw" />
+        <remap from="~image" to="$(arg camera_ns)/$(arg image)" />
         <remap from="~target" to="/det_and_track/target" />
     </node>
 
@@ -53,15 +55,15 @@
         <param name="tracker" value="$(arg tracker)" />
         <param name="track_thresh" value="$(arg track_thresh)" />
 
-        <remap from="~image" to="$(arg camera_ns)/image_raw" />
+        <remap from="~image" to="$(arg camera_ns)/$(arg image)" />
     </node>
 
     <!-- Visual Servoing -->
     <node pkg="merbots_ibvs" type="ibvs" name="ibvs" output="screen">
         <param name="control_freq" value="$(arg control_freq)" />
-        <param name="lambda_x" value="$(arg lambda_x)" />
-        <param name="lambda_y" value="$(arg lambda_y)" />
-        <param name="lambda_z" value="$(arg lambda_z)" />
+        <param name="lambda_x" value="$(arg lambda_vx)" />
+        <param name="lambda_y" value="$(arg lambda_vy)" />
+        <param name="lambda_z" value="$(arg lambda_wz)" />
         <param name="max_vx" value="$(arg max_vx)" />
         <param name="max_vy" value="$(arg max_vy)" />
         <param name="max_wz" value="$(arg max_wz)" />
@@ -76,7 +78,7 @@
         <remap from="~target" to="/det_and_track/target" />
         <remap from="~roi" to="/det_and_track/roi" />
         <remap from="~dist" to="/sensors/altitude" />
-        <remap from="~image" to="$(arg camera_ns)/image_raw" />
+        <remap from="~image" to="$(arg camera_ns)/$(arg image)" />
         <remap from="camera_info" to="$(arg camera_ns)/camera_info" />
     </node>
 
