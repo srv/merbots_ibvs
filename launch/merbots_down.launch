@@ -5,6 +5,7 @@
     <arg name="max_vel" default="0.3"/>
     <arg name="camera_ns" default="/stereo_down/scaled_x2/right" />
     <arg name="image" default="image_rect_color" />
+    <arg name="target_from_file" default="" />
     <arg name="debug" default="false" />
 
     <!-- Tracking params -->
@@ -70,6 +71,7 @@
         <param name="robot_frame" value="$(arg robot_frame)" />
         <param name="camera_frame" value="$(arg camera_frame)" />
         <param name="enable_vely" value="$(arg enable_vely)" />
+        <param name="target_from_file" value="$(arg target_from_file)" />
         <param name="debug" value="$(arg debug)" />
 
         <remap from="~twist" to="/control/body_velocity_req" />

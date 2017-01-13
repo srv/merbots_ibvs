@@ -130,6 +130,42 @@ public:
         nh.param("enable_vely", enable_vely, true);
         ROS_INFO("[Params] Enable linear Y velocity: %s", enable_vely ? "Yes":"No");
 
+        std::string target_file;
+        nh.param<std::string>("target_from_file", target_file, "");
+
+        if (target_file != "")
+        {
+            cv::Mat image = cv::imread(target_file);
+
+            int mid_w = static_cast<int>(width / 2.0);
+            int mid_h = static_cast<int>(height / 2.0);
+
+            int mid_w_roi = static_cast<int>(image.cols / 2.0);
+            int mid_h_roi = static_cast<int>(image.rows / 2.0);
+
+            mutex_target.lock();
+            // Updating the points
+            des_pt_tl.x = mid_w - mid_w_roi;
+            des_pt_tl.y = mid_h - mid_h_roi;
+            des_pt_tr.x = mid_w + mid_w_roi;
+            des_pt_tr.y = mid_h - mid_h_roi;
+            des_pt_bl.x = mid_w - mid_w_roi;
+            des_pt_bl.y = mid_h + mid_h_roi;
+
+            // Updating the current desired ROI
+            des_roi.x = des_pt_tl.x;
+            des_roi.y = des_pt_tl.y;
+            des_roi.width = image.cols;
+            des_roi.height = image.rows;
+
+            if (!init_target)
+            {
+                init_target = true;
+            }
+
+            mutex_target.unlock();
+        }
+
         nh.param("debug", debug, true);
         ROS_INFO("[Params] Debug: %s", debug ? "Yes":"No");
 
