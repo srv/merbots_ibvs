@@ -655,23 +655,41 @@ public:
                 last_img.copyTo(img);
                 mutex_img.unlock();
 
-                // Lines
-                cv::line(img, cv::Point(u1, v1), cv::Point(u1_d, v1_d), cv::Scalar(255, 255, 255), 2);
-                cv::line(img, cv::Point(u2, v2), cv::Point(u2_d, v2_d), cv::Scalar(255, 255, 255), 2);
-                cv::line(img, cv::Point(u3, v3), cv::Point(u3_d, v3_d), cv::Scalar(255, 255, 255), 2);
-
                 // Printing current roi
-                //cv::rectangle(img, roi, cv::Scalar(0, 255, 0), 2);
+                cv::rectangle(img, roi, cv::Scalar(0, 255, 0), 2);
+
+								// Printing desired roi
+                cv::rectangle(img, roi_d, cv::Scalar(0, 0, 255), 2);
+
+								cv::Point p1;
+								p1.x = roi.x;
+								p1.y = roi.y;
+
+								cv::Point p2;
+								p2.x = roi.x + roi.width;
+								p2.y = roi.y;
+
+								cv::Point p3;
+								p3.x = roi.x;
+								p3.y = roi.y + roi.height;
+
+								// Lines
+                //cv::line(img, cv::Point(u1, v1), cv::Point(u1_d, v1_d), cv::Scalar(255, 255, 255), 2);
+                //cv::line(img, cv::Point(u2, v2), cv::Point(u2_d, v2_d), cv::Scalar(255, 255, 255), 2);
+                //cv::line(img, cv::Point(u3, v3), cv::Point(u3_d, v3_d), cv::Scalar(255, 255, 255), 2);
+								cv::line(img, p1, cv::Point(u1_d, v1_d), cv::Scalar(255, 255, 255), 2);
+                cv::line(img, p2, cv::Point(u2_d, v2_d), cv::Scalar(255, 255, 255), 2);
+                cv::line(img, p3, cv::Point(u3_d, v3_d), cv::Scalar(255, 255, 255), 2);
 
                 // Printing desired coordinates
-                cv::circle(img, cv::Point(u1_d, v1_d), 3, cv::Scalar(0, 0, 255), -1);
-                cv::circle(img, cv::Point(u2_d, v2_d), 3, cv::Scalar(0, 0, 255), -1);
-                cv::circle(img, cv::Point(u3_d, v3_d), 3, cv::Scalar(0, 0, 255), -1);
+                //cv::circle(img, cv::Point(u1_d, v1_d), 3, cv::Scalar(0, 0, 255), -1);
+                //cv::circle(img, cv::Point(u2_d, v2_d), 3, cv::Scalar(0, 0, 255), -1);
+                //cv::circle(img, cv::Point(u3_d, v3_d), 3, cv::Scalar(0, 0, 255), -1);
 
                 // Printing current coordinates
-                cv::circle(img, cv::Point(u1, v1), 3, cv::Scalar(255, 0, 0), -1);
-                cv::circle(img, cv::Point(u2, v2), 3, cv::Scalar(255, 0, 0), -1);
-                cv::circle(img, cv::Point(u3, v3), 3, cv::Scalar(255, 0, 0), -1);
+                //cv::circle(img, cv::Point(u1, v1), 3, cv::Scalar(255, 0, 0), -1);
+                //cv::circle(img, cv::Point(u2, v2), 3, cv::Scalar(255, 0, 0), -1);
+                //cv::circle(img, cv::Point(u3, v3), 3, cv::Scalar(255, 0, 0), -1);
 
                 cv::imshow("IBVS", img);
                 cv::waitKey(5);
@@ -716,7 +734,7 @@ private:
     double control_freq;
     cv::Mat_<double> L;
     cv::Mat_<double> J;
-    cv::Mat_<double> s;    
+    cv::Mat_<double> s;
     double max_vx, max_vy, max_wz;
     double cam_angle, cos_ang, tan_ang;
 		PIDController pid_x, pid_y, pid_z;
