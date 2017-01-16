@@ -23,9 +23,15 @@
 
     <!-- Visual Servoing params -->
     <arg name="control_freq" default="10.0" />
-    <arg name="lambda_vx" default="0.3" />
-    <arg name="lambda_vy" default="0.0" />
-    <arg name="lambda_wz" default="0.3" />
+    <arg name="kp_x" default="0.3" />
+    <arg name="kp_y" default="0.0" />
+    <arg name="kp_z" default="0.3" />
+    <arg name="kd_x" default="0.0" />
+    <arg name="kd_y" default="0.0" />
+    <arg name="kd_z" default="0.0" />
+    <arg name="ki_x" default="0.0" />
+    <arg name="ki_y" default="0.0" />
+    <arg name="ki_z" default="0.0" />
     <arg name="max_vx" default="$(arg max_vel)" />
     <arg name="max_vy" default="$(arg max_vel)" />
     <arg name="max_wz" default="$(arg max_vel)" />
@@ -61,9 +67,15 @@
     <!-- Visual Servoing -->
     <node pkg="merbots_ibvs" type="ibvs" name="ibvs" output="screen">
         <param name="control_freq" value="$(arg control_freq)" />
-        <param name="lambda_x" value="$(arg lambda_vx)" />
-        <param name="lambda_y" value="$(arg lambda_vy)" />
-        <param name="lambda_z" value="$(arg lambda_wz)" />
+        <param name="kp_x" value="$(arg kp_x)" />
+        <param name="kp_y" value="$(arg kp_y)" />
+        <param name="kp_z" value="$(arg kp_z)" />
+        <param name="kd_x" value="$(arg kd_x)" />
+        <param name="kd_y" value="$(arg kd_y)" />
+        <param name="kd_z" value="$(arg kd_z)" />
+        <param name="ki_x" value="$(arg ki_x)" />
+        <param name="ki_y" value="$(arg ki_y)" />
+        <param name="ki_z" value="$(arg ki_z)" />
         <param name="max_vx" value="$(arg max_vx)" />
         <param name="max_vy" value="$(arg max_vy)" />
         <param name="max_wz" value="$(arg max_wz)" />

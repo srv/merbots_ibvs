@@ -13,6 +13,8 @@
 #include <tf/transform_datatypes.h>
 #include <tf/transform_listener.h>
 
+#include <pid/PID.h>
+
 #define PI 3.14159265
 
 class IBVS
@@ -25,9 +27,6 @@ public:
             L(6, 6, 0.0),
             J(6, 6, 0.0),
             s(6, 1, 0.0),
-            lambda_x(1.0),
-            lambda_y(1.0),
-            lambda_z(1.0),
             max_vx(0.6),
             max_vy(0.3),
             max_wz(0.25),
@@ -102,14 +101,39 @@ public:
         nh.param("control_freq", control_freq, 10.0);
         ROS_INFO("[Params] Control frequency: %f", control_freq);
 
-        nh.param("lambda_x", lambda_x, 1.0);
-        ROS_INFO("[Params] Lambda X: %f", lambda_x);
+				// PID parameters
+        double kp_x, kd_x, ki_x;
+        nh.param("kp_x", kp_x, 1.0);
+        ROS_INFO("[Params] Kp x: %f", kp_x);
+        pid_x.setKp(kp_x);
+        nh.param("kd_x", kd_x, 0.0);
+        ROS_INFO("[Params] Kd x: %f", kd_x);
+        pid_x.setKd(kd_x);
+        nh.param("ki_x", ki_x, 0.0);
+        ROS_INFO("[Params] Ki x: %f", ki_x);
+        pid_x.setKi(ki_x);
 
-        nh.param("lambda_y", lambda_y, 1.0);
-        ROS_INFO("[Params] Lambda Y: %f", lambda_y);
+        double kp_y, kd_y, ki_y;
+        nh.param("kp_y", kp_y, 1.0);
+        ROS_INFO("[Params] Kp y: %f", kp_y);
+        pid_y.setKp(kp_y);
+        nh.param("kd_y", kd_y, 0.0);
+        ROS_INFO("[Params] Kd y: %f", kd_y);
+        pid_y.setKd(kd_y);
+        nh.param("ki_y", ki_y, 0.0);
+        ROS_INFO("[Params] Ki y: %f", ki_y);
+        pid_y.setKi(ki_y);
 
-        nh.param("lambda_z", lambda_z, 1.0);
-        ROS_INFO("[Params] Lambda Z: %f", lambda_z);
+        double kp_z, kd_z, ki_z;
+        nh.param("kp_z", kp_z, 1.0);
+        ROS_INFO("[Params] Kp z: %f", kp_z);
+        pid_z.setKp(kp_z);
+        nh.param("kd_z", kd_z, 0.0);
+        ROS_INFO("[Params] Kd z: %f", kd_z);
+        pid_z.setKd(kd_z);
+        nh.param("ki_z", ki_z, 0.0);
+        ROS_INFO("[Params] Ki z: %f", ki_z);
+        pid_z.setKi(ki_z);
 
         nh.param("max_vx", max_vx, 0.6);
         ROS_INFO("[Params] Max linear velocity in X axis: %f", max_vx);
@@ -332,14 +356,16 @@ public:
 
     void dynreconf_cb(merbots_ibvs::IBVSConfig& config, uint32_t level)
     {
-        mutex_lambdas.lock();
-
-        // Adapting the correspondent parameters dynamically
-        lambda_x = config.lambda_x;
-        lambda_y = config.lambda_y;
-        lambda_z = config.lambda_z;
-
-        mutex_lambdas.unlock();
+				// Adapting the correspondent parameters dynamically
+        pid_x.setKp(config.kp_x);
+        pid_x.setKd(config.kd_x);
+        pid_x.setKi(config.ki_x);
+        pid_y.setKp(config.kp_y);
+        pid_y.setKd(config.kd_y);
+        pid_y.setKi(config.ki_y);
+        pid_z.setKp(config.kp_z);
+        pid_z.setKd(config.kd_z);
+        pid_z.setKi(config.ki_z);
     }
 
     void roi_cb(const merbots_tracking::TargetPointsConstPtr& roi_msg)
@@ -431,17 +457,9 @@ public:
 
             // Computing the distance of each point
             double z1, z2, z3;
-			z1 = (h / cos_ang) * (1.0 - (tan_ang * (v1 - v0)) / (tan_ang * (v1 - v0) + fs));
-			z2 = (h / cos_ang) * (1.0 - (tan_ang * (v2 - v0)) / (tan_ang * (v2 - v0) + fs));
-			z3 = (h / cos_ang) * (1.0 - (tan_ang * (v3 - v0)) / (tan_ang * (v3 - v0) + fs));
-
-            // Getting lambdas
-            double lamb_x, lamb_y, lamb_z;
-            mutex_lambdas.lock();
-            lamb_x = lambda_x;
-            lamb_y = lambda_y;
-            lamb_z = lambda_z;
-            mutex_lambdas.unlock();
+						z1 = (h / cos_ang) * (1.0 - (tan_ang * (v1 - v0)) / (tan_ang * (v1 - v0) + fs));
+						z2 = (h / cos_ang) * (1.0 - (tan_ang * (v2 - v0)) / (tan_ang * (v2 - v0) + fs));
+						z3 = (h / cos_ang) * (1.0 - (tan_ang * (v3 - v0)) / (tan_ang * (v3 - v0) + fs));
 
             // --- Interaction matrix L ---
             // Primes
@@ -505,14 +523,6 @@ public:
             // Transforming interaction matrix L into L'
             cv::Mat_<double> Lp = L * J;
 
-            // --- Filling the error vector ---
-            s(0,0) = u1 - u1_d;
-            s(1,0) = v1 - v1_d;
-            s(2,0) = u2 - u2_d;
-            s(3,0) = v2 - v2_d;
-            s(4,0) = u3 - u3_d;
-            s(5,0) = v3 - v3_d;
-
             // Selecting the corresponding columns of Lp
             cv::Mat_<double> Lp_s;
             if (enable_vely)
@@ -533,8 +543,34 @@ public:
             // We compute the pseudoinverse matrix
             cv::Mat_<double> Lp_s_inv = (Lp_s.t() * Lp_s).inv() * Lp_s.t();
 
-            // --- Computing the motion command ---
-            cv::Mat_<double> vels = Lp_s_inv * s;
+						// --- Filling the error vector ---
+            s(0,0) = u1 - u1_d;
+            s(1,0) = v1 - v1_d;
+            s(2,0) = u2 - u2_d;
+            s(3,0) = v2 - v2_d;
+            s(4,0) = u3 - u3_d;
+            s(5,0) = v3 - v3_d;
+
+						// --- Computing the motion command ---
+            ros::Time curr_time = ros::Time::now();
+            cv::Mat_<double> res_pidx;
+            pid_x.getCommand(curr_time, s, res_pidx);
+            cv::Mat_<double> res_pidy;
+            pid_y.getCommand(curr_time, s, res_pidy);
+            cv::Mat_<double> res_pidz;
+            pid_z.getCommand(curr_time, s, res_pidz);
+
+            cv::Mat_<double> vx = -(Lp_s_inv.row(0) * res_pidx);
+            cv::Mat_<double> vy, wz;
+            if (enable_vely)
+            {
+                vy = -(Lp_s_inv.row(1) * res_pidy);
+                wz = -(Lp_s_inv.row(2) * res_pidz);
+            }
+            else
+            {
+                wz = -(Lp_s_inv.row(1) * res_pidz);
+            }
 
             // --- Filling and publishing the corresponding message ---
             auv_msgs::BodyVelocityReq curr_twist;
@@ -546,7 +582,7 @@ public:
             curr_twist.goal.priority = auv_msgs::GoalDescriptor::PRIORITY_NORMAL; // FIXME
 
             // VX
-            curr_twist.twist.linear.x = -lamb_x * vels(0, 0);
+            curr_twist.twist.linear.x = vx(0,0);
             curr_twist.disable_axis.x = 0;
             if (std::abs(curr_twist.twist.linear.x) > max_vx)
             {
@@ -561,28 +597,29 @@ public:
                 }
             }
 
-            // VY
+						// VY
             if (enable_vely)
             {
-                curr_twist.twist.linear.y = -lamb_y * vels(1, 0);
+                curr_twist.twist.linear.y = vy(0,0);
                 curr_twist.disable_axis.y = 0;
+
+                if (std::abs(curr_twist.twist.linear.y) > max_vy)
+                {
+                    // Limiting velocity
+                    if (curr_twist.twist.linear.y > 0)
+                    {
+                        curr_twist.twist.linear.y = max_vy;
+                    }
+                    else
+                    {
+                        curr_twist.twist.linear.y = -max_vy;
+                    }
+                }
             }
             else
             {
                 curr_twist.twist.linear.y = 0.0;
                 curr_twist.disable_axis.y = 1;
-            }
-            if (std::abs(curr_twist.twist.linear.y) > max_vy)
-            {
-                // Limiting velocity
-                if (curr_twist.twist.linear.y > 0)
-                {
-                    curr_twist.twist.linear.y = max_vy;
-                }
-                else
-                {
-                    curr_twist.twist.linear.y = -max_vy;
-                }
             }
 
             curr_twist.twist.linear.z = 0.0;
@@ -593,14 +630,7 @@ public:
             curr_twist.disable_axis.pitch = 1;
 
             // WZ
-            if (enable_vely)
-            {
-                curr_twist.twist.angular.z = -lamb_z * vels(2, 0);
-            }
-            else
-            {
-                curr_twist.twist.angular.z = -lamb_z * vels(1, 0);
-            }
+            curr_twist.twist.angular.z = wz(0,0);
             curr_twist.disable_axis.yaw = 0;
             if (std::abs(curr_twist.twist.angular.z) > max_wz)
             {
@@ -651,8 +681,8 @@ public:
 
 private:
     // ROS
-	ros::NodeHandle nh;
-	image_transport::ImageTransport it;
+		ros::NodeHandle nh;
+		image_transport::ImageTransport it;
     ros::Subscriber roi_sub;
     ros::Subscriber dist_sub;
     ros::Publisher twist_pub;
@@ -686,11 +716,10 @@ private:
     double control_freq;
     cv::Mat_<double> L;
     cv::Mat_<double> J;
-    cv::Mat_<double> s;
-    boost::mutex mutex_lambdas;
-    double lambda_x, lambda_y, lambda_z;
+    cv::Mat_<double> s;    
     double max_vx, max_vy, max_wz;
     double cam_angle, cos_ang, tan_ang;
+		PIDController pid_x, pid_y, pid_z;
 
     // Last received image
     boost::mutex mutex_img;
@@ -707,7 +736,7 @@ int main(int argc, char** argv)
 {
 	// ROS
 	ros::init(argc, argv, "ibvs");
-    ROS_INFO("MERBOTS Image-Based Visual Servoing");
+  ROS_INFO("MERBOTS Image-Based Visual Servoing");
 	IBVS ibvs;
 	ros::spin();
 
