@@ -11,8 +11,7 @@
     <arg name="descriptor" default="SIFT" />
     <arg name="rep_error" default="3.0" />
     <arg name="inliers" default="35" />
-    <arg name="resize" default="0.5" />
-    <arg name="target_from_file" default="" />
+    <arg name="resize" default="0.5" />    
     <arg name="det_timer" default="15.0" />
     <arg name="use_camera" default="false" />
     <arg name="detect_only" default="false" />
