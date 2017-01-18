@@ -5,6 +5,9 @@
 #include <opencv2/core.hpp>
 #include <ros/ros.h>
 
+namespace merbots_ibvs
+{
+
 class PIDController
 {
 public:
@@ -31,5 +34,7 @@ private:
     cv::Mat_<double> last_error;
     cv::Mat_<double> error_sum;
 };
+
+}
 
 #endif // PID_H

@@ -1,4 +1,7 @@
-#include "PID.h"
+#include <merbots_ibvs/pid/PID.h>
+
+namespace merbots_ibvs
+{
 
 PIDController::PIDController()
 {
@@ -106,4 +109,6 @@ void PIDController::getCommand(const ros::Time& t, const cv::Mat_<double>& s_p, 
     // PID output
     cv::Mat_<double> pid_out = (Kp * s_p) + (Kd * derror) + (Ki * error_sum);
     pid_out.copyTo(res);
+}
+
 }

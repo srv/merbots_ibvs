@@ -1,0 +1,7 @@
+<library path="lib/libibvs_nodelet">
+  <class name="merbots_ibvs/IBVSNodelet" type="merbots_ibvs::IBVSNodelet" base_class_type="nodelet::Nodelet">
+    <description>
+      Image-Based Visual Servoing Nodelet
+    </description>
+  </class>
+</library>

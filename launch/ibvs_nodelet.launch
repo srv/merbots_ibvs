@@ -31,8 +31,10 @@
     <!-- Static Transform -->
     <node pkg="tf" type="static_transform_publisher" name="st_trans" args="0 0 0 0 0 0 base_link camera 40" />
 
-    <!-- Detection and Tracking -->
-    <node pkg="merbots_ibvs" type="ibvs_node" name="ibvs" output="screen">
+    <!-- IBVS -->
+    <node pkg="nodelet" type="nodelet" name="standalone_nodelet" args="manager" output="screen"/>
+
+    <node pkg="nodelet" type="nodelet" name="ibvs" args="load merbots_ibvs/IBVSNodelet standalone_nodelet --no-bond" output="screen">
 
         <param name="control_freq" value="$(arg control_freq)" />
         <param name="kp_x" value="$(arg kp_x)" />

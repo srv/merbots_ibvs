@@ -23,7 +23,7 @@
     <arg name="control_freq" default="10.0" />
     <arg name="kp_x" default="0.1" />
     <arg name="kp_y" default="0.3" />
-    <arg name="kp_z" default="0.05" />
+    <arg name="kp_z" default="0.25" />
     <arg name="kd_x" default="0.2" />
     <arg name="kd_y" default="0.0" />
     <arg name="kd_z" default="0.0" />
@@ -63,7 +63,7 @@
     </node>
 
     <!-- Visual Servoing -->
-    <node pkg="merbots_ibvs" type="ibvs" name="ibvs" output="screen">
+    <node pkg="merbots_ibvs" type="ibvs_node" name="ibvs" output="screen">
         <param name="control_freq" value="$(arg control_freq)" />
         <param name="kp_x" value="$(arg kp_x)" />
         <param name="kp_y" value="$(arg kp_y)" />
@@ -89,7 +89,7 @@
         <remap from="~roi" to="/det_and_track/roi" />
         <remap from="~dist" to="/sensors/altitude" />
         <remap from="~image" to="$(arg camera_ns)/image_raw" />
-        <remap from="camera_info" to="$(arg camera_ns)/camera_info" />
+        <remap from="~camera_info" to="$(arg camera_ns)/camera_info" />
     </node>
 
 </launch>
