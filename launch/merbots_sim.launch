@@ -45,7 +45,7 @@
     </node>
 
     <!-- Detection and Tracking -->
-    <node pkg="merbots_tracking" type="det_and_track" name="det_and_track" output="screen">
+    <node pkg="merbots_tracking" type="det_and_track_node" name="det_and_track" output="screen">
         <param name="detector" value="$(arg detector)" />
         <param name="descriptor" value="$(arg descriptor)" />
         <param name="debug" value="$(arg debug)" />
