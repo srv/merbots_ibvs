@@ -35,7 +35,6 @@
     <node pkg="nodelet" type="nodelet" name="standalone_nodelet" args="manager" output="screen"/>
 
     <node pkg="nodelet" type="nodelet" name="ibvs" args="load merbots_ibvs/IBVSNodelet standalone_nodelet --no-bond" output="screen">
-
         <param name="control_freq" value="$(arg control_freq)" />
         <param name="kp_x" value="$(arg kp_x)" />
         <param name="kp_y" value="$(arg kp_y)" />
