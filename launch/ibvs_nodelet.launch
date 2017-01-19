@@ -5,28 +5,12 @@
     <arg name="camera_ns" default="/cv_camera" />
     <arg name="roi_topic" default="/det_and_track/roi" />
     <arg name="dist_topic" default="/det_and_track/dist" />
-    <arg name="control_freq" default="10.0" />
-    <arg name="kp_x" default="0.35" />
-    <arg name="kp_y" default="0.4" />
-    <arg name="kp_z" default="0.35" />
-    <arg name="kd_x" default="0.0" />
-    <arg name="kd_y" default="0.0" />
-    <arg name="kd_z" default="0.0" />
-    <arg name="ki_x" default="0.0" />
-    <arg name="ki_y" default="0.0" />
-    <arg name="ki_z" default="0.0" />
-    <arg name="max_vx" default="0.6" />
-    <arg name="max_vy" default="0.3" />
-    <arg name="max_wz" default="0.25" />
-    <arg name="camera_angle" default="45.0" />
+    <arg name="camera_angle" default="0.0" />
     <arg name="robot_frame" default="base_link" />
     <arg name="camera_frame" default="camera" />
     <arg name="enable_vely" default="true" />
     <arg name="target_from_file" default="" />
     <arg name="debug" default="true" />
-
-    <!-- cv_camera -->
-    <!--node pkg="cv_camera" type="cv_camera_node" name="cv_camera" output="screen" /-->
 
     <!-- Static Transform -->
     <node pkg="tf" type="static_transform_publisher" name="st_trans" args="0 0 0 0 0 0 base_link camera 40" />
@@ -35,19 +19,7 @@
     <node pkg="nodelet" type="nodelet" name="standalone_nodelet" args="manager" output="screen"/>
 
     <node pkg="nodelet" type="nodelet" name="ibvs" args="load merbots_ibvs/IBVSNodelet standalone_nodelet --no-bond" output="screen">
-        <param name="control_freq" value="$(arg control_freq)" />
-        <param name="kp_x" value="$(arg kp_x)" />
-        <param name="kp_y" value="$(arg kp_y)" />
-        <param name="kp_z" value="$(arg kp_z)" />
-        <param name="kd_x" value="$(arg kd_x)" />
-        <param name="kd_y" value="$(arg kd_y)" />
-        <param name="kd_z" value="$(arg kd_z)" />
-        <param name="ki_x" value="$(arg ki_x)" />
-        <param name="ki_y" value="$(arg ki_y)" />
-        <param name="ki_z" value="$(arg ki_z)" />
-        <param name="max_vx" value="$(arg max_vx)" />
-        <param name="max_vy" value="$(arg max_vy)" />
-        <param name="max_wz" value="$(arg max_wz)" />
+        <rosparam command="load" file="$(find merbots_ibvs)/launch/ibvs_params_sim.yaml" />
         <param name="camera_angle" value="$(arg camera_angle)" />
         <param name="robot_frame" value="$(arg robot_frame)" />
         <param name="camera_frame" value="$(arg camera_frame)" />

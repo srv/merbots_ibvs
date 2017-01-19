@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<launch>
+    <!-- Common params -->
+		<arg name="max_vel" default="0.3" />
+    <arg name="camera_ns" default="/stereo_down/left/" />
+    <arg name="target_from_file" default="" />
+    <arg name="debug" default="true" />
+
+    <!-- Visual Servoing params -->
+    <arg name="camera_angle" default="45.0" />
+    <arg name="robot_frame" default="sparus2" />
+    <arg name="camera_frame" default="left_optical" />
+    <arg name="enable_vely" default="false" />
+
+    <!-- Target Selector -->
+    <node pkg="merbots_tracking" type="target_selector" name="target_selector" output="screen">
+        <remap from="~image" to="$(arg camera_ns)/image_raw" />
+        <remap from="~target" to="/det_and_track/target" />
+    </node>
+
+    <!-- Detection and Tracking -->
+    <node pkg="merbots_tracking" type="det_and_track_node" name="det_and_track" output="screen">
+        <param name="debug" value="$(arg debug)" />
+        <param name="target_from_file" value="$(arg target_from_file)" />
+				<rosparam command="load" file="$(find merbots_tracking)/launch/objdet_params.yaml" />
+
+        <remap from="~image" to="$(arg camera_ns)/image_raw" />
+    </node>
+
+    <!-- Visual Servoing -->
+    <node pkg="merbots_ibvs" type="ibvs_node" name="ibvs" output="screen">
+        <rosparam command="load" file="$(find merbots_ibvs)/launch/ibvs_params_sim.yaml" />
+        <param name="camera_angle" value="$(arg camera_angle)" />
+        <param name="robot_frame" value="$(arg robot_frame)" />
+        <param name="camera_frame" value="$(arg camera_frame)" />
+        <param name="enable_vely" value="$(arg enable_vely)" />
+        <param name="target_from_file" value="$(arg target_from_file)" />
+        <param name="debug" value="$(arg debug)" />
+
+        <remap from="~twist" to="/control/body_velocity_req" />
+        <remap from="~target" to="/det_and_track/target" />
+        <remap from="~roi" to="/det_and_track/roi" />
+        <remap from="~dist" to="/sensors/altitude" />
+        <remap from="~image" to="$(arg camera_ns)/image_raw" />
+        <remap from="~camera_info" to="$(arg camera_ns)/camera_info" />
+    </node>
+
+</launch>
