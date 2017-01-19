@@ -1,7 +1,7 @@
 control_freq: 10.0
-kp_x: 0.35
-kp_y: 0.4
-kp_z: 0.35
+kp_x: 0.6
+kp_y: 0.6
+kp_z: 0.6
 kd_x: 0.0
 kd_y: 0.0
 kd_z: 0.0
@@ -9,5 +9,5 @@ ki_x: 0.0
 ki_y: 0.0
 ki_z: 0.0
 max_vx: 0.4
-max_vy: 0.3
-max_wz: 0.25
+max_vy: 0.4
+max_wz: 0.3

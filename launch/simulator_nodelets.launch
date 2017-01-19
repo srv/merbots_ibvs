@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <launch>
-    <!-- Common params -->
-		<arg name="max_vel" default="0.3" />
+    <!-- Common params -->		
     <arg name="camera_ns" default="/stereo_down/left/" />
     <arg name="target_from_file" default="" />
     <arg name="debug" default="false" />

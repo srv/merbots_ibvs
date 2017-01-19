@@ -12,7 +12,7 @@ namespace merbots_ibvs
 	max_vx(0.6),
 	max_vy(0.3),
 	max_wz(0.25),
-	cam_angle(45.0),
+	cam_angle(0.0),
 	z_dist(1.0),
 	init_roi(false),
 	last_roi_valid(false),
@@ -126,12 +126,12 @@ namespace merbots_ibvs
 		nh.param("max_wz", max_wz, 0.25);
 		ROS_INFO("[Params] Max angular velocity around Z axis: %f", max_wz);
 
-		nh.param("camera_angle", cam_angle, 45.0);
+		nh.param("camera_angle", cam_angle, 0.0);
 		ROS_INFO("[Params] Camera angle regarding vertical axis: %f", cam_angle);
 
 		// Computing cosine and tangent of the angle
-		tan_ang = tan(cam_angle * PI / 180.0);
-		cos_ang = cos(cam_angle * PI / 180.0);
+		tan_ang = tan(cam_angle);
+		cos_ang = cos(cam_angle);
 
 		nh.param("enable_vely", enable_vely, true);
 		ROS_INFO("[Params] Enable linear Y velocity: %s", enable_vely ? "Yes":"No");

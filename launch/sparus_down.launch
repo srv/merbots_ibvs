@@ -2,14 +2,13 @@
 
 <launch>
     <!-- Common params -->
-    <arg name="max_vel" default="0.3"/>
     <arg name="camera_ns" default="/stereo_down/scaled_x2/right" />
     <arg name="image" default="image_rect_color" />
     <arg name="target_from_file" default="" />
-    <arg name="debug" default="false" />
+    <arg name="debug" default="true" />
 
     <!-- Visual Servoing params -->
-    <arg name="camera_angle" default="0" /> <!-- Angle WRT vertical -->
+    <arg name="camera_angle" default="0.0" /> <!-- Angle WRT vertical -->
     <arg name="robot_frame" default="sparus2" />
     <arg name="camera_frame" default="left_optical" />
     <arg name="enable_vely" default="false" />
