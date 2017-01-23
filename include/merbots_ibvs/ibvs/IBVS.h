@@ -7,6 +7,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <dynamic_reconfigure/server.h>
 #include <merbots_ibvs/IBVSConfig.h>
+#include <merbots_ibvs/IBVSInfo.h>
 #include <merbots_tracking/TargetPoints.h>
 #include <image_transport/image_transport.h>
 #include <opencv2/highgui.hpp>
@@ -43,6 +44,7 @@ namespace merbots_ibvs
     ros::Subscriber roi_sub;
     ros::Subscriber dist_sub;
     ros::Publisher twist_pub;
+    ros::Publisher ibvsinfo_pub;
     image_transport::Subscriber target_sub;
     image_transport::Subscriber img_sub;
     ros::Timer control_timer;

@@ -19,6 +19,7 @@
     <build_depend>auv_msgs</build_depend>
     <build_depend>std_srvs</build_depend>
     <build_depend>nodelet</build_depend>
+    <build_depend>message_generation</build_depend>
     <build_depend>merbots_tracking</build_depend>
 
     <run_depend>roscpp</run_depend>
@@ -31,6 +32,7 @@
     <run_depend>auv_msgs</run_depend>
     <run_depend>std_srvs</run_depend>
     <run_depend>nodelet</run_depend>
+    <run_depend>message_runtime</run_depend>
     <run_depend>merbots_tracking</run_depend>
 
     <export>

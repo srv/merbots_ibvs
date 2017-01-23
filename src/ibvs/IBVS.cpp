@@ -1,5 +1,7 @@
 #include <merbots_ibvs/ibvs/IBVS.h>
 
+#define SQ(x) ((x)*(x))
+
 namespace merbots_ibvs
 {
 	IBVS::IBVS(const ros::NodeHandle& nh_) :
@@ -229,6 +231,9 @@ namespace merbots_ibvs
 
 		// Publishing twist messages
 		twist_pub = nh.advertise<auv_msgs::BodyVelocityReq>("twist", 1);
+
+		// Publishing IBVS info
+		ibvsinfo_pub = nh.advertise<merbots_ibvs::IBVSInfo>("ibvs_info", 1);
 
 		// Dynamic reconfigure
 		server.setCallback(boost::bind(&IBVS::dynreconf_cb, this, _1, _2));
@@ -678,5 +683,21 @@ namespace merbots_ibvs
 				cv::waitKey(5);
 			}
 		}
+
+		// Publishing information about the visual servoing process
+		merbots_ibvs::IBVSInfoPtr ibvsinfo_msg(new merbots_ibvs::IBVSInfo);
+		ibvsinfo_msg->stamp = ros::Time::now();
+		ibvsinfo_msg->target_found = valid_roi;
+		if (valid_roi)
+		{
+			ibvsinfo_msg->error = SQ(u1 - u1_d) + SQ(v1 - v1_d) +
+								  SQ(u2 - u2_d) + SQ(v2 - v2_d) +
+								  SQ(u3 - u3_d) + SQ(v3 - v3_d);
+		}
+		else
+		{
+			ibvsinfo_msg->error = 0.0;			
+		}
+		ibvsinfo_pub.publish(ibvsinfo_msg);
 	}
 }

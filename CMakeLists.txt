@@ -8,7 +8,7 @@ file(GLOB_RECURSE SRCS ${CMAKE_CURRENT_SOURCE_DIR} *.cxx *.cpp *.c *.py)
 file(GLOB_RECURSE LNCH ${CMAKE_CURRENT_SOURCE_DIR} *.launch)
 
 # Catkin dependencies
-find_package(catkin REQUIRED COMPONENTS roscpp sensor_msgs geometry_msgs image_transport cv_bridge dynamic_reconfigure tf auv_msgs std_srvs nodelet merbots_tracking)
+find_package(catkin REQUIRED COMPONENTS roscpp sensor_msgs geometry_msgs image_transport cv_bridge dynamic_reconfigure tf auv_msgs std_srvs nodelet message_generation merbots_tracking)
 
 # System dependencies
 find_package(OpenCV REQUIRED)
@@ -20,6 +20,18 @@ if(OPENMP_FOUND)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
+# Message files
+add_message_files(
+    FILES
+    IBVSInfo.msg
+)
+
+# Generating messages
+generate_messages(
+    DEPENDENCIES
+    std_msgs
+)
+
 # Dynamic reconfigure configuration
 generate_dynamic_reconfigure_options(
         cfg/IBVS.cfg
@@ -29,7 +41,7 @@ generate_dynamic_reconfigure_options(
 catkin_package(
     INCLUDE_DIRS
     LIBRARIES
-    CATKIN_DEPENDS roscpp sensor_msgs geometry_msgs image_transport cv_bridge dynamic_reconfigure tf auv_msgs std_srvs nodelet merbots_tracking
+    CATKIN_DEPENDS roscpp sensor_msgs geometry_msgs image_transport cv_bridge dynamic_reconfigure tf auv_msgs std_srvs nodelet message_runtime merbots_tracking
     DEPENDS OpenCV
 )
 
