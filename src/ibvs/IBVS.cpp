@@ -686,7 +686,7 @@ namespace merbots_ibvs
 
 		// Publishing information about the visual servoing process
 		merbots_ibvs::IBVSInfoPtr ibvsinfo_msg(new merbots_ibvs::IBVSInfo);
-		ibvsinfo_msg->stamp = ros::Time::now();
+		ibvsinfo_msg->header.stamp = ros::Time::now();
 		ibvsinfo_msg->target_found = valid_roi;
 		if (valid_roi)
 		{
@@ -696,7 +696,7 @@ namespace merbots_ibvs
 		}
 		else
 		{
-			ibvsinfo_msg->error = 0.0;			
+			ibvsinfo_msg->error = 0.0;
 		}
 		ibvsinfo_pub.publish(ibvsinfo_msg);
 	}
