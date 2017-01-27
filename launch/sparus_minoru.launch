@@ -13,6 +13,7 @@
     <arg name="robot_frame" default="sparus2" />
     <arg name="camera_frame" default="minoru_left" />
     <arg name="enable_vely" default="false" />
+    <arg name="enable_recovery" default="false" />
 
     <node pkg="image_transport" type="republish" name="republish" args="compressed">
       <remap from="in" to="$(arg camera_ns)/$(arg image)"/>
@@ -53,7 +54,7 @@
     </node>
 
     <!-- IBVS recovery -->
-    <node pkg="merbots_ibvs_recovery" type="merbots_ibvs_recovery" name="merbots_ibvs_recovery" output="screen">
+    <node if="$(arg enable_recovery)" pkg="merbots_ibvs_recovery" type="merbots_ibvs_recovery" name="merbots_ibvs_recovery" output="screen">
       <remap from="nav_sts" to="/navigation/nav_sts"/>
       <remap from="ibvs_info" to="/ibvs/ibvs_info"/>
     </node>
