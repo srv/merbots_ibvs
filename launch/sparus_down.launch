@@ -2,27 +2,32 @@
 
 <launch>
     <!-- Common params -->
-    <arg name="camera_ns" default="/stereo_down/scaled_x2/right" />
-    <arg name="image" default="image_rect_color" />
-    <arg name="image_repub" default="image_repub" />
-    <arg name="target_from_file" default="" />
-    <arg name="debug" default="true" />
+    <arg name="camera_ns"           default="/stereo_down/scaled_x2/right" />
+    <arg name="image"               default="image_rect_color" />
+    <arg name="image_repub"         default="image_repub" />
+    <arg name="target_from_file"    default="" />
+    <arg name="debug"               default="true" />
 
     <!-- Visual Servoing params -->
-    <arg name="camera_angle" default="0.0" /> <!-- Angle WRT vertical -->
-    <arg name="robot_frame" default="sparus2" />
-    <arg name="camera_frame" default="left_optical" />
-    <arg name="enable_vely" default="false" />
-    <arg name="enable_recovery" default="false" />
+    <arg name="camera_angle"        default="0.0" /> <!-- Angle WRT vertical -->
+    <arg name="robot_frame"         default="sparus2" />
+    <arg name="camera_frame"        default="left_optical" />
 
-    <node pkg="image_transport" type="republish" name="republish" args="compressed">
+    <!-- Enable/disable -->
+    <arg name="enable_vely"         default="false" />
+    <arg name="enable_republish"    default="false" />
+    <arg name="enable_recovery"     default="false" />
+
+    <node if="$(arg enable_republish)" pkg="image_transport" type="republish" name="republish" args="compressed">
       <remap from="in" to="$(arg camera_ns)/$(arg image)"/>
       <remap from="out" to="$(arg camera_ns)/$(arg image_repub)"/>
     </node>
 
     <!-- Target Selector -->
     <node pkg="merbots_tracking" type="target_selector" name="target_selector" output="screen">
-        <remap from="~image" to="$(arg camera_ns)/$(arg image_repub)" />
+        <remap unless="$(arg enable_republish)" from="~image" to="$(arg camera_ns)/$(arg image)" />
+        <remap if="$(arg enable_republish)" from="~image" to="$(arg camera_ns)/$(arg image_repub)" />
+
         <remap from="~target" to="/det_and_track/target" />
     </node>
 
@@ -32,7 +37,8 @@
         <param name="target_from_file" value="$(arg target_from_file)" />
         <rosparam command="load" file="$(find merbots_tracking)/launch/objdet_params.yaml" />
 
-        <remap from="~image" to="$(arg camera_ns)/$(arg image_repub)" />
+        <remap unless="$(arg enable_republish)" from="~image" to="$(arg camera_ns)/$(arg image)" />
+        <remap if="$(arg enable_republish)" from="~image" to="$(arg camera_ns)/$(arg image_repub)" />
     </node>
 
     <!-- Visual Servoing -->
@@ -49,8 +55,10 @@
         <remap from="~target" to="/det_and_track/target" />
         <remap from="~roi" to="/det_and_track/roi" />
         <remap from="~dist" to="/sensors/altitude" />
-        <remap from="~image" to="$(arg camera_ns)/$(arg image_repub)" />
         <remap from="~camera_info" to="$(arg camera_ns)/camera_info" />
+
+        <remap unless="$(arg enable_republish)" from="~image" to="$(arg camera_ns)/$(arg image)" />
+        <remap if="$(arg enable_republish)" from="~image" to="$(arg camera_ns)/$(arg image_repub)" />
     </node>
 
     <!-- IBVS recovery -->
