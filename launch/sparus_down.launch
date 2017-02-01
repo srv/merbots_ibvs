@@ -2,7 +2,7 @@
 
 <launch>
     <!-- Common params -->
-    <arg name="camera_ns"           default="/stereo_down/scaled_x2/right" />
+    <arg name="camera_ns"           default="/stereo_down/scaled_x2/left" />
     <arg name="image"               default="image_rect_color" />
     <arg name="image_repub"         default="image_repub" />
     <arg name="target_from_file"    default="" />
@@ -15,8 +15,8 @@
 
     <!-- Enable/disable -->
     <arg name="enable_vely"         default="false" />
-    <arg name="enable_republish"    default="false" />
-    <arg name="enable_recovery"     default="false" />
+    <arg name="enable_republish"    default="true" />
+    <arg name="enable_recovery"     default="true" />
 
     <node if="$(arg enable_republish)" pkg="image_transport" type="republish" name="republish" args="compressed">
       <remap from="in" to="$(arg camera_ns)/$(arg image)"/>
@@ -43,7 +43,7 @@
 
     <!-- Visual Servoing -->
     <node pkg="merbots_ibvs" type="ibvs_node" name="ibvs" output="screen">
-        <rosparam command="load" file="$(find merbots_ibvs)/launch/ibvs_params.yaml" />
+        <rosparam command="load" file="$(find merbots_ibvs)/launch/ibvs_params_sea.yaml" />
         <param name="camera_angle" value="$(arg camera_angle)" />
         <param name="robot_frame" value="$(arg robot_frame)" />
         <param name="camera_frame" value="$(arg camera_frame)" />
