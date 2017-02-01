@@ -231,6 +231,7 @@ namespace merbots_ibvs
 
 		// Publishing twist messages
 		twist_pub = nh.advertise<auv_msgs::BodyVelocityReq>("twist", 1);
+    twist_debug_pub = nh.advertise<auv_msgs::BodyVelocityReq>("twist_debug", 1);
 
 		// Publishing IBVS info
 		ibvsinfo_pub = nh.advertise<merbots_ibvs::IBVSInfo>("ibvs_info", 1);
@@ -634,6 +635,9 @@ namespace merbots_ibvs
 			}
 
 			twist_pub.publish(curr_twist);
+      if (twist_debug_pub.getNumSubscribers() > 0) {
+        twist_debug_pub.publish(curr_twist);
+      }
 
 			// Showing debug image if needed
 			if (debug)

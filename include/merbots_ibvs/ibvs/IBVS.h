@@ -44,6 +44,7 @@ namespace merbots_ibvs
     ros::Subscriber roi_sub;
     ros::Subscriber dist_sub;
     ros::Publisher twist_pub;
+    ros::Publisher twist_debug_pub;
     ros::Publisher ibvsinfo_pub;
     image_transport::Subscriber target_sub;
     image_transport::Subscriber img_sub;
