@@ -18,7 +18,7 @@
     <arg name="enable_republish"    default="false" />
     <arg name="enable_recovery"     default="true" />
 
-    <node pkg="tf" type="static_transform_publisher" name="sparus2_to_stereo_down" args="0.79325 -0.0725 0.1097 1.5708 0.0 0.0 /sparus2 /stereo_forward 100" />
+    <node pkg="tf" type="static_transform_publisher" name="sparus2_to_stereo_down" args="0.79325 -0.0725 0.1097 1.5708 0.0 0.79 /sparus2 /stereo_forward 100" />
     <node pkg="tf" type="static_transform_publisher" name="stereo_down_to_left_optical" args="0.0 0.0 0.0 0.0 0.0 0.0 /stereo_forward /left_optical 100" />
 
     <node if="$(arg enable_republish)" pkg="image_transport" type="republish" name="republish" args="compressed">
