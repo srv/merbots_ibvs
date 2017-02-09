@@ -21,7 +21,8 @@ namespace merbots_ibvs
 	last_roi_valid(false),
 	init_target(false),
 	enable_vely(true),
-	debug(false)
+	debug(false),
+	resize_debug_img(0.5)
 	{
 		// Reading calibration information
 		ROS_INFO("Waiting for calibration information (10s) ...");
@@ -177,6 +178,9 @@ namespace merbots_ibvs
 
 		nh.param("debug", debug, true);
 		ROS_INFO("[Params] Debug: %s", debug ? "Yes":"No");
+
+		nh.param("resize_debug_img", resize_debug_img, 0.5);
+		ROS_INFO("[Params] Debug image resize: %f", resize_debug_img);
 
 		std::string robot_frame;
 		nh.param<std::string>("robot_frame", robot_frame, "base_link");
@@ -677,6 +681,8 @@ namespace merbots_ibvs
 				{
 					cv::putText(img, "T", cv::Point(30,30), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, cv::Scalar(0,255,0), 1, CV_AA);
 				}
+
+				cv::resize(img, img, cv::Size(), resize_debug_img, resize_debug_img);
 
 				cv::imshow("IBVS", img);
 				cv::waitKey(5);

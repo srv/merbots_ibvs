@@ -11,3 +11,4 @@ ki_z: 0.0005
 max_vx: 0.3
 max_vy: 0.3
 max_wz: 0.3
+resize_debug_img: 0.5
