@@ -65,6 +65,7 @@ namespace merbots_ibvs
     boost::mutex mutex_roi;
     cv::Point2i last_pt_tl, last_pt_tr, last_pt_bl;
     cv::Rect last_roi;
+    int last_status;
     bool last_roi_valid;
     boost::mutex mutex_target;
     cv::Point2i des_pt_tl, des_pt_tr, des_pt_bl;

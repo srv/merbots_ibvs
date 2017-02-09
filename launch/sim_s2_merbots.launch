@@ -36,7 +36,7 @@
 
     <!-- Detection and Tracking -->
     <node pkg="merbots_tracking" type="det_and_track_node" name="det_and_track" output="screen">
-        <param name="debug" value="$(arg debug)" />
+        <param name="debug" value="false" />
         <param name="target_from_file" value="$(arg target_from_file)" />
         <rosparam command="load" file="$(find merbots_tracking)/launch/objdet_params.yaml" />
 

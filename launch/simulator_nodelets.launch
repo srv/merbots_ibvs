@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <launch>
-    <!-- Common params -->		
+    <!-- Common params -->
     <arg name="camera_ns" default="/stereo_down/left/" />
     <arg name="target_from_file" default="" />
     <arg name="debug" default="false" />
@@ -22,7 +22,7 @@
     <node pkg="nodelet" type="nodelet" name="nodelet_manager" args="manager" output="screen"/>
 
     <node pkg="nodelet" type="nodelet" name="det_and_track" args="load merbots_tracking/ObjectDetectorNodelet nodelet_manager --no-bond" output="screen">
-        <param name="debug" value="$(arg debug)" />
+        <param name="debug" value="false" />
         <param name="target_from_file" value="$(arg target_from_file)" />
 				<rosparam command="load" file="$(find merbots_tracking)/launch/objdet_params.yaml" />
 

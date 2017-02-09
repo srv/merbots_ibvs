@@ -17,6 +17,7 @@ namespace merbots_ibvs
 	cam_angle(0.0),
 	z_dist(1.0),
 	init_roi(false),
+	last_status(0),
 	last_roi_valid(false),
 	init_target(false),
 	enable_vely(true),
@@ -374,6 +375,9 @@ namespace merbots_ibvs
 		last_roi.width = last_pt_tr.x - last_pt_tl.x;
 		last_roi.height = last_pt_bl.y - last_pt_tl.y;
 
+		// Updating the status
+		last_status = roi_msg->status;
+
 		// Assessing if it is a valid ROI
 		last_roi_valid = roi_msg->exists_roi;
 
@@ -396,6 +400,7 @@ namespace merbots_ibvs
 		int u2, v2;
 		int u3, v3;
 		cv::Rect roi;
+		int status;
 		bool in_roi = false;
 		bool valid_roi = false;
 		mutex_roi.lock();
@@ -410,6 +415,7 @@ namespace merbots_ibvs
 		{
 			in_roi = true;
 		}
+		status = last_status;
 		valid_roi = last_roi_valid;
 		mutex_roi.unlock();
 
@@ -635,7 +641,7 @@ namespace merbots_ibvs
 			}
 
 			twist_pub.publish(curr_twist);
-			
+
       		if (twist_debug_pub.getNumSubscribers() > 0)
 			{
 				twist_debug_pub.publish(curr_twist);
@@ -649,41 +655,28 @@ namespace merbots_ibvs
 				last_img.copyTo(img);
 				mutex_img.unlock();
 
-				// Printing current roi
-				cv::rectangle(img, roi, cv::Scalar(0, 255, 0), 2);
+				// Lines
+				cv::line(img, cv::Point(u1, v1), cv::Point(u1_d, v1_d), cv::Scalar(0, 255, 255), 3);
+				cv::line(img, cv::Point(u2, v2), cv::Point(u2_d, v2_d), cv::Scalar(0, 255, 255), 3);
+				cv::line(img, cv::Point(u3, v3), cv::Point(u3_d, v3_d), cv::Scalar(0, 255, 255), 3);
 
-				// Printing desired roi
+				// Printing the current points
+				cv::circle(img, cv::Point(u1, v1), 4, cv::Scalar(0, 255, 0), -1);
+        		cv::circle(img, cv::Point(u2, v2), 4, cv::Scalar(0, 255, 0), -1);
+        		cv::circle(img, cv::Point(u3, v3), 4, cv::Scalar(0, 255, 0), -1);
+
+        		// Printing desired roi
 				cv::rectangle(img, roi_d, cv::Scalar(0, 0, 255), 2);
 
-				cv::Point p1;
-				p1.x = roi.x;
-				p1.y = roi.y;
-
-				cv::Point p2;
-				p2.x = roi.x + roi.width;
-				p2.y = roi.y;
-
-				cv::Point p3;
-				p3.x = roi.x;
-				p3.y = roi.y + roi.height;
-
-				// Lines
-				//cv::line(img, cv::Point(u1, v1), cv::Point(u1_d, v1_d), cv::Scalar(255, 255, 255), 2);
-				//cv::line(img, cv::Point(u2, v2), cv::Point(u2_d, v2_d), cv::Scalar(255, 255, 255), 2);
-				//cv::line(img, cv::Point(u3, v3), cv::Point(u3_d, v3_d), cv::Scalar(255, 255, 255), 2);
-				cv::line(img, p1, cv::Point(u1_d, v1_d), cv::Scalar(255, 255, 255), 2);
-				cv::line(img, p2, cv::Point(u2_d, v2_d), cv::Scalar(255, 255, 255), 2);
-				cv::line(img, p3, cv::Point(u3_d, v3_d), cv::Scalar(255, 255, 255), 2);
-
-				// Printing desired coordinates
-				//cv::circle(img, cv::Point(u1_d, v1_d), 3, cv::Scalar(0, 0, 255), -1);
-				//cv::circle(img, cv::Point(u2_d, v2_d), 3, cv::Scalar(0, 0, 255), -1);
-				//cv::circle(img, cv::Point(u3_d, v3_d), 3, cv::Scalar(0, 0, 255), -1);
-
-				// Printing current coordinates
-				//cv::circle(img, cv::Point(u1, v1), 3, cv::Scalar(255, 0, 0), -1);
-				//cv::circle(img, cv::Point(u2, v2), 3, cv::Scalar(255, 0, 0), -1);
-				//cv::circle(img, cv::Point(u3, v3), 3, cv::Scalar(255, 0, 0), -1);
+				// Plotting the working mode in the image
+				if (status == 0)
+				{
+					cv::putText(img, "D", cv::Point(30,30), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, cv::Scalar(0,255,0), 1, CV_AA);
+				}
+				else
+				{
+					cv::putText(img, "T", cv::Point(30,30), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, cv::Scalar(0,255,0), 1, CV_AA);
+				}
 
 				cv::imshow("IBVS", img);
 				cv::waitKey(5);
