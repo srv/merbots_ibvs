@@ -22,6 +22,7 @@ namespace merbots_ibvs
 	init_target(false),
 	enable_vely(true),
 	debug(false),
+	debug_topic(false),
 	resize_debug_img(0.5)
 	{
 		// Reading calibration information
@@ -179,6 +180,9 @@ namespace merbots_ibvs
 		nh.param("debug", debug, true);
 		ROS_INFO("[Params] Debug: %s", debug ? "Yes":"No");
 
+		nh.param("debug_topic", debug_topic, true);
+		ROS_INFO("[Params] Debug per topic: %s", debug_topic ? "Yes":"No");
+
 		nh.param("resize_debug_img", resize_debug_img, 0.5);
 		ROS_INFO("[Params] Debug image resize: %f", resize_debug_img);
 
@@ -251,9 +255,15 @@ namespace merbots_ibvs
 		dist_sub = nh.subscribe("dist", 0, &IBVS::dist_cb, this);
 
 		// Image Subscriber for debugging purposes
-		if (debug)
+		if (debug || debug_topic)
 		{
 			img_sub = it.subscribe("image", 0, &IBVS::image_cb, this);
+		}
+
+		// Debug image publisher
+		if (debug_topic)
+		{
+			debug_img_pub = it.advertise("debug_img", 1);
 		}
 
 		// Service to restart IBVS
@@ -652,7 +662,7 @@ namespace merbots_ibvs
 			}
 
 			// Showing debug image if needed
-			if (debug)
+			if (debug || debug_topic)
 			{
 				cv::Mat img;
 				mutex_img.lock();
@@ -684,8 +694,17 @@ namespace merbots_ibvs
 
 				cv::resize(img, img, cv::Size(), resize_debug_img, resize_debug_img);
 
-				cv::imshow("IBVS", img);
-				cv::waitKey(5);
+				if (debug_topic)
+				{
+					sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", img).toImageMsg();
+					debug_img_pub.publish(msg);
+				}
+
+				if (debug)
+				{
+					cv::imshow("IBVS", img);
+					cv::waitKey(5);
+				}
 			}
 		}
 

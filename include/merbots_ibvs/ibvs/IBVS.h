@@ -48,6 +48,7 @@ namespace merbots_ibvs
     ros::Publisher ibvsinfo_pub;
     image_transport::Subscriber target_sub;
     image_transport::Subscriber img_sub;
+    image_transport::Publisher debug_img_pub;
     ros::Timer control_timer;
     tf::TransformListener tf_listener;
     ros::ServiceServer restart_srv;
@@ -91,6 +92,7 @@ namespace merbots_ibvs
     bool init_target;
     bool enable_vely;
     bool debug;
+    bool debug_topic;
     double resize_debug_img;
   };
 }
