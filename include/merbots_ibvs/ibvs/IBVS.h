@@ -64,7 +64,7 @@ namespace merbots_ibvs
 
     // Points used to perform IBVS
     boost::mutex mutex_roi;
-    cv::Point2i last_pt_tl, last_pt_tr, last_pt_bl;
+    cv::Point2i last_pt_tl, last_pt_tr, last_pt_bl, last_pt_br;
     cv::Rect last_roi;
     int last_status;
     bool last_roi_valid;

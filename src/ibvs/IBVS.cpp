@@ -372,6 +372,8 @@ namespace merbots_ibvs
 		last_pt_tr.y = static_cast<int>(roi_msg->point_tr.y);
 		last_pt_bl.x = static_cast<int>(roi_msg->point_bl.x);
 		last_pt_bl.y = static_cast<int>(roi_msg->point_bl.y);
+		last_pt_br.x = static_cast<int>(roi_msg->point_br.x);
+		last_pt_br.y = static_cast<int>(roi_msg->point_br.y);
 
 		// Updating the ROI
 		last_roi.x = last_pt_tl.x;
@@ -403,6 +405,7 @@ namespace merbots_ibvs
 		int u1, v1;
 		int u2, v2;
 		int u3, v3;
+		int u4, v4;
 		cv::Rect roi;
 		int status;
 		bool in_roi = false;
@@ -414,6 +417,8 @@ namespace merbots_ibvs
 		v2 = last_pt_tr.y;
 		u3 = last_pt_bl.x;
 		v3 = last_pt_bl.y;
+		u4 = last_pt_br.x;
+		v4 = last_pt_br.y;
 		roi = last_roi;
 		if (init_roi)
 		{
@@ -664,10 +669,14 @@ namespace merbots_ibvs
 				cv::line(img, cv::Point(u2, v2), cv::Point(u2_d, v2_d), cv::Scalar(0, 255, 255), 3);
 				cv::line(img, cv::Point(u3, v3), cv::Point(u3_d, v3_d), cv::Scalar(0, 255, 255), 3);
 
-				// Printing the current points
-				cv::circle(img, cv::Point(u1, v1), 4, cv::Scalar(0, 255, 0), -1);
-        		cv::circle(img, cv::Point(u2, v2), 4, cv::Scalar(0, 255, 0), -1);
-        		cv::circle(img, cv::Point(u3, v3), 4, cv::Scalar(0, 255, 0), -1);
+				// Printing the current rectangle
+				//cv::circle(img, cv::Point(u1, v1), 4, cv::Scalar(0, 255, 0), -1);
+        		//cv::circle(img, cv::Point(u2, v2), 4, cv::Scalar(0, 255, 0), -1);
+        		//cv::circle(img, cv::Point(u3, v3), 4, cv::Scalar(0, 255, 0), -1);
+        		cv::line(img, cv::Point(u1, v1), cv::Point(u2, v2), cv::Scalar(0, 255, 0), 2);
+        		cv::line(img, cv::Point(u2, v2), cv::Point(u4, v4), cv::Scalar(0, 255, 0), 2);
+        		cv::line(img, cv::Point(u4, v4), cv::Point(u3, v3), cv::Scalar(0, 255, 0), 2);
+        		cv::line(img, cv::Point(u3, v3), cv::Point(u1, v1), cv::Scalar(0, 255, 0), 2);
 
         		// Printing desired roi
 				cv::rectangle(img, roi_d, cv::Scalar(0, 0, 255), 2);
