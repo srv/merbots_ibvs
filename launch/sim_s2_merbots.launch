@@ -7,7 +7,6 @@
     <arg name="image_repub"         default="image_repub" />
     <arg name="target_from_file"    default="" />
     <arg name="debug"               default="true" />
-    <arg name="debug_topic"         default="true" />
 
     <!-- Visual Servoing params -->
     <arg name="camera_angle"        default="0.0" /> <!-- Angle WRT vertical -->
@@ -54,7 +53,6 @@
         <param name="enable_vely" value="$(arg enable_vely)" />
         <param name="target_from_file" value="$(arg target_from_file)" />
         <param name="debug" value="$(arg debug)" />
-        <param name="debug_topic" value="$(arg debug_topic)" />
 
         <remap from="~twist" to="/cola2_control/body_velocity_req" />
         <remap from="~target" to="/det_and_track/target" />
