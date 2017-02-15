@@ -30,6 +30,7 @@ namespace merbots_ibvs
 
     // Methods
     bool restart(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
+    cv::Point2i rotatePoint(const cv::Point2i& pr, const cv::Point2i& pc, double alpha);
     bool rotateClockwise(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
     bool rotateCounterclockwise(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
     void dist_cb(const sensor_msgs::RangeConstPtr& msg);
@@ -72,7 +73,6 @@ namespace merbots_ibvs
     bool last_roi_valid;
     boost::mutex mutex_target;
     cv::Point2i des_pt_tl, des_pt_tr, des_pt_bl, des_pt_br;
-    cv::Rect des_roi;
 
     // Control parameters
     boost::mutex mutex_zdist;
