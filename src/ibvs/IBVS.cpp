@@ -323,12 +323,6 @@ namespace merbots_ibvs
   {
     mutex_target.lock();
 
-    cv::Point2i temp(des_pt_br);
-    des_pt_br = des_pt_bl;
-    des_pt_bl = des_pt_tl;
-    des_pt_tl = des_pt_tr;
-    des_pt_tr = temp;
-
     // Updating the current desired ROI
     int mid_w = static_cast<int>(width / 2.0);
     int mid_h = static_cast<int>(height / 2.0);
