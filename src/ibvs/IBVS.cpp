@@ -257,7 +257,11 @@ namespace merbots_ibvs
 		debug_img_pub = it.advertise("debug_img", 1);
 
 		// Service to restart IBVS
-		restart_srv = nh.advertiseService("restart", &IBVS::restart, this);
+    restart_srv = nh.advertiseService("restart", &IBVS::restart, this);
+
+    // Rotate target TODO
+    rotate_cw_srv = nh.advertiseService("rotate_clockwise", &IBVS::rotateClockwise, this);
+		rotate_ccw_srv = nh.advertiseService("rotate_counterclockwise", &IBVS::rotateCounterclockwise, this);
 
 		// Control timer
 		control_timer = nh.createTimer(ros::Duration(1.0 / control_freq), &IBVS::ctrltimer_cb, this);
@@ -282,6 +286,73 @@ namespace merbots_ibvs
 
 		return true;
 	}
+
+
+  bool IBVS::rotateClockwise(std_srvs::Empty::Request& req,
+                             std_srvs::Empty::Response& res)
+  {
+    mutex_target.lock();
+
+    // Updating the current desired ROI
+    int mid_w = static_cast<int>(width / 2.0);
+    int mid_h = static_cast<int>(height / 2.0);
+    int mid_w_roi = static_cast<int>(des_roi.height / 2.0);
+    int mid_h_roi = static_cast<int>(des_roi.width / 2.0);
+
+    des_roi.x = mid_w - mid_w_roi;
+    des_roi.y = mid_h - mid_h_roi;
+    des_roi.width = mid_w_roi*2;
+    des_roi.height = mid_h_roi*2;
+
+    // Updating the points
+    des_pt_tl.x = mid_w - mid_w_roi;
+    des_pt_tl.y = mid_h + mid_h_roi;
+    des_pt_tr.x = mid_w - mid_w_roi;
+    des_pt_tr.y = mid_h - mid_h_roi;
+    des_pt_bl.x = mid_w + mid_w_roi;
+    des_pt_bl.y = mid_h + mid_h_roi;
+    des_pt_br.x = mid_w + mid_w_roi;
+    des_pt_br.y = mid_h - mid_h_roi;
+
+    mutex_target.unlock();
+    return true;
+  }
+
+  bool IBVS::rotateCounterclockwise(std_srvs::Empty::Request& req,
+                                    std_srvs::Empty::Response& res)
+  {
+    mutex_target.lock();
+
+    cv::Point2i temp(des_pt_br);
+    des_pt_br = des_pt_bl;
+    des_pt_bl = des_pt_tl;
+    des_pt_tl = des_pt_tr;
+    des_pt_tr = temp;
+
+    // Updating the current desired ROI
+    int mid_w = static_cast<int>(width / 2.0);
+    int mid_h = static_cast<int>(height / 2.0);
+    int mid_w_roi = static_cast<int>(des_roi.height / 2.0);
+    int mid_h_roi = static_cast<int>(des_roi.width / 2.0);
+
+    des_roi.x = mid_w - mid_w_roi;
+    des_roi.y = mid_h - mid_h_roi;
+    des_roi.width = mid_w_roi*2;
+    des_roi.height = mid_h_roi*2;
+
+    // Updating the points
+    des_pt_tl.x = mid_w + mid_w_roi;
+    des_pt_tl.y = mid_h - mid_h_roi;
+    des_pt_tr.x = mid_w + mid_w_roi;
+    des_pt_tr.y = mid_h + mid_h_roi;
+    des_pt_bl.x = mid_w - mid_w_roi;
+    des_pt_bl.y = mid_h - mid_h_roi;
+    des_pt_br.x = mid_w - mid_w_roi;
+    des_pt_br.y = mid_h + mid_h_roi;
+
+    mutex_target.unlock();
+    return true;
+  }
 
 	void IBVS::dist_cb(const sensor_msgs::RangeConstPtr& msg)
 	{
@@ -332,6 +403,8 @@ namespace merbots_ibvs
 		des_pt_tr.y = mid_h - mid_h_roi;
 		des_pt_bl.x = mid_w - mid_w_roi;
 		des_pt_bl.y = mid_h + mid_h_roi;
+    des_pt_br.x = mid_w + mid_w_roi;
+    des_pt_br.y = mid_h + mid_h_roi;
 
 		// Updating the current desired ROI
 		des_roi.x = des_pt_tl.x;
@@ -670,15 +743,15 @@ namespace merbots_ibvs
 				cv::line(img, cv::Point(u3, v3), cv::Point(u3_d, v3_d), cv::Scalar(0, 255, 255), 3);
 
 				// Printing the current rectangle
-				//cv::circle(img, cv::Point(u1, v1), 4, cv::Scalar(0, 255, 0), -1);
-        		//cv::circle(img, cv::Point(u2, v2), 4, cv::Scalar(0, 255, 0), -1);
-        		//cv::circle(img, cv::Point(u3, v3), 4, cv::Scalar(0, 255, 0), -1);
-        		cv::line(img, cv::Point(u1, v1), cv::Point(u2, v2), cv::Scalar(0, 255, 0), 2);
-        		cv::line(img, cv::Point(u2, v2), cv::Point(u4, v4), cv::Scalar(0, 255, 0), 2);
-        		cv::line(img, cv::Point(u4, v4), cv::Point(u3, v3), cv::Scalar(0, 255, 0), 2);
-        		cv::line(img, cv::Point(u3, v3), cv::Point(u1, v1), cv::Scalar(0, 255, 0), 2);
+				cv::circle(img, cv::Point(u1_d, v1_d), 4, cv::Scalar(0, 255, 0), -1);
+    		cv::circle(img, cv::Point(u2_d, v2_d), 4, cv::Scalar(0, 255, 0), -1);
+    		cv::circle(img, cv::Point(u3_d, v3_d), 4, cv::Scalar(0, 255, 0), -1);
+    		cv::line(img, cv::Point(u1, v1), cv::Point(u2, v2), cv::Scalar(0, 255, 0), 2);
+    		cv::line(img, cv::Point(u2, v2), cv::Point(u4, v4), cv::Scalar(0, 255, 0), 2);
+    		cv::line(img, cv::Point(u4, v4), cv::Point(u3, v3), cv::Scalar(0, 255, 0), 2);
+    		cv::line(img, cv::Point(u3, v3), cv::Point(u1, v1), cv::Scalar(0, 255, 0), 2);
 
-        		// Printing desired roi
+    		// Printing desired roi
 				cv::rectangle(img, roi_d, cv::Scalar(0, 0, 255), 2);
 
 				// Plotting the working mode in the image

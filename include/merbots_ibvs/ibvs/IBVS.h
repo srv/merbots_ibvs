@@ -30,6 +30,8 @@ namespace merbots_ibvs
 
     // Methods
     bool restart(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
+    bool rotateClockwise(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
+    bool rotateCounterclockwise(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
     void dist_cb(const sensor_msgs::RangeConstPtr& msg);
     void image_cb(const sensor_msgs::ImageConstPtr& msg);
     void target_cb(const sensor_msgs::ImageConstPtr& msg);
@@ -51,7 +53,7 @@ namespace merbots_ibvs
     image_transport::Publisher debug_img_pub;
     ros::Timer control_timer;
     tf::TransformListener tf_listener;
-    ros::ServiceServer restart_srv;
+    ros::ServiceServer restart_srv, rotate_cw_srv, rotate_ccw_srv;
     dynamic_reconfigure::Server<merbots_ibvs::IBVSConfig> server;
 
     // Calibration info
@@ -69,7 +71,7 @@ namespace merbots_ibvs
     int last_status;
     bool last_roi_valid;
     boost::mutex mutex_target;
-    cv::Point2i des_pt_tl, des_pt_tr, des_pt_bl;
+    cv::Point2i des_pt_tl, des_pt_tr, des_pt_bl, des_pt_br;
     cv::Rect des_roi;
 
     // Control parameters
