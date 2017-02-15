@@ -737,21 +737,33 @@ namespace merbots_ibvs
 				last_img.copyTo(img);
 				mutex_img.unlock();
 
+				bool p1_valid = (u1 < img.cols) && (v1 < img.rows);
+				bool p2_valid = (u2 < img.cols) && (v2 < img.rows);
+				bool p3_valid = (u3 < img.cols) && (v3 < img.rows);
+				bool p4_valid = (u4 < img.cols) && (v4 < img.rows);
+
 				// Lines
-				cv::line(img, cv::Point(u1, v1), cv::Point(u1_d, v1_d), cv::Scalar(0, 255, 255), 3);
-				cv::line(img, cv::Point(u2, v2), cv::Point(u2_d, v2_d), cv::Scalar(0, 255, 255), 3);
-				cv::line(img, cv::Point(u3, v3), cv::Point(u3_d, v3_d), cv::Scalar(0, 255, 255), 3);
+				if (p1_valid)
+					cv::line(img, cv::Point(u1, v1), cv::Point(u1_d, v1_d), cv::Scalar(0, 255, 255), 3);
+				if (p2_valid)
+					cv::line(img, cv::Point(u2, v2), cv::Point(u2_d, v2_d), cv::Scalar(0, 255, 255), 3);
+				if (p3_valid)
+					cv::line(img, cv::Point(u3, v3), cv::Point(u3_d, v3_d), cv::Scalar(0, 255, 255), 3);
 
 				// Printing the current rectangle
-				cv::circle(img, cv::Point(u1_d, v1_d), 4, cv::Scalar(0, 255, 0), -1);
-    		cv::circle(img, cv::Point(u2_d, v2_d), 4, cv::Scalar(0, 255, 0), -1);
-    		cv::circle(img, cv::Point(u3_d, v3_d), 4, cv::Scalar(0, 255, 0), -1);
-    		cv::line(img, cv::Point(u1, v1), cv::Point(u2, v2), cv::Scalar(0, 255, 0), 2);
-    		cv::line(img, cv::Point(u2, v2), cv::Point(u4, v4), cv::Scalar(0, 255, 0), 2);
-    		cv::line(img, cv::Point(u4, v4), cv::Point(u3, v3), cv::Scalar(0, 255, 0), 2);
-    		cv::line(img, cv::Point(u3, v3), cv::Point(u1, v1), cv::Scalar(0, 255, 0), 2);
+				// cv::circle(img, cv::Point(u1_d, v1_d), 4, cv::Scalar(0, 255, 0), -1);
+				// cv::circle(img, cv::Point(u2_d, v2_d), 4, cv::Scalar(0, 255, 0), -1);
+				// cv::circle(img, cv::Point(u3_d, v3_d), 4, cv::Scalar(0, 255, 0), -1);
+				if (p1_valid && p2_valid)
+					cv::line(img, cv::Point(u1, v1), cv::Point(u2, v2), cv::Scalar(0, 255, 0), 2);
+				if (p2_valid && p4_valid)
+					cv::line(img, cv::Point(u2, v2), cv::Point(u4, v4), cv::Scalar(0, 255, 0), 2);
+				if (p4_valid && p3_valid)
+					cv::line(img, cv::Point(u4, v4), cv::Point(u3, v3), cv::Scalar(0, 255, 0), 2);
+				if (p3_valid && p1_valid)
+					cv::line(img, cv::Point(u3, v3), cv::Point(u1, v1), cv::Scalar(0, 255, 0), 2);
 
-    		// Printing desired roi
+    			// Printing desired roi
 				cv::rectangle(img, roi_d, cv::Scalar(0, 0, 255), 2);
 
 				// Plotting the working mode in the image

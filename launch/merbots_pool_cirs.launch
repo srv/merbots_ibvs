@@ -9,7 +9,7 @@
     <arg name="debug"               default="true" />
 
     <!-- Visual Servoing params -->
-    <arg name="camera_angle"        default="0.0" /> <!-- Angle WRT vertical -->
+    <arg name="camera_angle"        default="0.7854" /> <!-- Angle WRT vertical -->
     <arg name="robot_frame"         default="sparus2" />
     <arg name="camera_frame"        default="bumblebee2" />
 
@@ -45,7 +45,7 @@
 
     <!-- Visual Servoing -->
     <node pkg="merbots_ibvs" type="ibvs_node" name="ibvs" output="screen">
-        <rosparam command="load" file="$(find merbots_ibvs)/launch/merbots_pool.yaml" />
+        <rosparam command="load" file="$(find merbots_ibvs)/launch/merbots_pool_cirs.yaml" />
         <param name="camera_angle" value="$(arg camera_angle)" />
         <param name="robot_frame" value="$(arg robot_frame)" />
         <param name="camera_frame" value="$(arg camera_frame)" />
