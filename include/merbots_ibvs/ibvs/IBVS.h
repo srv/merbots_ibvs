@@ -52,6 +52,7 @@ namespace merbots_ibvs
     image_transport::Subscriber target_sub;
     image_transport::Subscriber img_sub;
     image_transport::Publisher debug_img_pub;
+    image_transport::Publisher target_pub;
     ros::Timer control_timer;
     tf::TransformListener tf_listener;
     ros::ServiceServer restart_srv, rotate_cw_srv, rotate_ccw_srv;
@@ -96,6 +97,7 @@ namespace merbots_ibvs
     bool debug;
     double resize_debug_img;
     double rotate_inc;
+    ros::Time last_target_update;
   };
 }
 

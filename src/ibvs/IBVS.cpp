@@ -23,7 +23,8 @@ namespace merbots_ibvs
 	enable_vely(true),
 	debug(false),
 	resize_debug_img(0.5),
-	rotate_inc(0.3)
+	rotate_inc(0.3),
+	last_target_update(ros::Time::now())
 	{
 		// Reading calibration information
 		ROS_INFO("Waiting for calibration information (10s) ...");
@@ -253,6 +254,9 @@ namespace merbots_ibvs
 
 		// Debug image publisher
 		debug_img_pub = it.advertise("debug_img", 1);
+
+		// New target definition
+		target_pub = it.advertise("target", 1);
 
 		// Service to restart IBVS
 		restart_srv = nh.advertiseService("restart", &IBVS::restart, this);
@@ -781,20 +785,65 @@ namespace merbots_ibvs
 			}
 		}
 
+		// Computing IBVS error
+		double ibvs_error = SQ(u1 - u1_d) + SQ(v1 - v1_d) +
+						  	SQ(u2 - u2_d) + SQ(v2 - v2_d) +
+						  	SQ(u3 - u3_d) + SQ(v3 - v3_d);
+
 		// Publishing information about the visual servoing process
 		merbots_ibvs::IBVSInfoPtr ibvsinfo_msg(new merbots_ibvs::IBVSInfo);
 		ibvsinfo_msg->header.stamp = ros::Time::now();
 		ibvsinfo_msg->target_found = valid_roi;
 		if (valid_roi)
 		{
-			ibvsinfo_msg->error = SQ(u1 - u1_d) + SQ(v1 - v1_d) +
-								  SQ(u2 - u2_d) + SQ(v2 - v2_d) +
-								  SQ(u3 - u3_d) + SQ(v3 - v3_d);
+			ibvsinfo_msg->error = ibvs_error;
 		}
 		else
 		{
 			ibvsinfo_msg->error = 0.0;
 		}
 		ibvsinfo_pub.publish(ibvsinfo_msg);
+
+		if (in_roi && in_target)
+		{
+			// Assessing if a target update is required
+			if (ibvs_error < 1500.0 && ((ros::Time::now() - last_target_update).toSec() > 5.0))
+			{
+				// Computing the new ROI according to the corresponding target
+				cv::Mat img;
+				mutex_img.lock();
+				last_img.copyTo(img);
+				mutex_img.unlock();
+
+				std::vector<int> xlist, ylist;
+	            xlist.push_back(static_cast<int>(u1));
+	            xlist.push_back(static_cast<int>(u2));
+	            xlist.push_back(static_cast<int>(u3));
+	            xlist.push_back(static_cast<int>(u4));
+	            ylist.push_back(static_cast<int>(v1));
+	            ylist.push_back(static_cast<int>(v2));
+	            ylist.push_back(static_cast<int>(v3));
+	            ylist.push_back(static_cast<int>(v4));
+
+	            // Determining the bounding box
+	            int xmin = std::max(0, *std::min_element(xlist.begin(), xlist.end()));
+	            int xmax = std::min(img.cols, *std::max_element(xlist.begin(), xlist.end()));
+	            int ymin = std::max(0, *std::min_element(ylist.begin(), ylist.end()));
+	            int ymax = std::min(img.rows, *std::max_element(ylist.begin(), ylist.end()));
+
+	            cv::Rect new_roi(xmin, ymin, xmax - xmin, ymax - ymin);
+	            cv::Mat new_target = img(new_roi);
+
+	            // Publishing new target
+	            // Converting the image to sensor_msgs::ImagePtr
+	            sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", new_target).toImageMsg();
+
+	            // Publishing the new target
+	            target_pub.publish(msg);
+
+				// Updating time
+				last_target_update = ros::Time::now();
+			}
+		}
 	}
 }
