@@ -14,4 +14,6 @@ kd_z: 0.0
 max_vx: 0.15
 max_vy: 0.15
 max_wz: 0.15
+
 resize_debug_img: 1.0
+rotate_increment: 0.3

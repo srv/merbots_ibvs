@@ -95,6 +95,7 @@ namespace merbots_ibvs
     bool enable_vely;
     bool debug;
     double resize_debug_img;
+    double rotate_inc;
   };
 }
 

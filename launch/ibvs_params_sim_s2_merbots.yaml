@@ -15,3 +15,4 @@ max_vx: 0.15
 max_vy: 0.15
 max_wz: 0.05
 resize_debug_img: 0.5
+rotate_increment: 0.3

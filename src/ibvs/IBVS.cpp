@@ -22,7 +22,8 @@ namespace merbots_ibvs
 	init_target(false),
 	enable_vely(true),
 	debug(false),
-	resize_debug_img(0.5)
+	resize_debug_img(0.5),
+	rotate_inc(0.3)
 	{
 		// Reading calibration information
 		ROS_INFO("Waiting for calibration information (10s) ...");
@@ -176,6 +177,9 @@ namespace merbots_ibvs
 		nh.param("resize_debug_img", resize_debug_img, 0.5);
 		ROS_INFO("[Params] Debug image resize: %f", resize_debug_img);
 
+		nh.param("rotate_increment", rotate_inc, 0.3);
+		ROS_INFO("[Params] Rotation increments: %f", rotate_inc);
+
 		std::string robot_frame;
 		nh.param<std::string>("robot_frame", robot_frame, "base_link");
 
@@ -251,10 +255,10 @@ namespace merbots_ibvs
 		debug_img_pub = it.advertise("debug_img", 1);
 
 		// Service to restart IBVS
-    restart_srv = nh.advertiseService("restart", &IBVS::restart, this);
+		restart_srv = nh.advertiseService("restart", &IBVS::restart, this);
 
     // Rotate target TODO
-    rotate_cw_srv = nh.advertiseService("rotate_clockwise", &IBVS::rotateClockwise, this);
+		rotate_cw_srv = nh.advertiseService("rotate_clockwise", &IBVS::rotateClockwise, this);
 		rotate_ccw_srv = nh.advertiseService("rotate_counterclockwise", &IBVS::rotateCounterclockwise, this);
 
 		// Control timer
@@ -303,10 +307,10 @@ namespace merbots_ibvs
     cv::Point2i central(mid_w, mid_h);
 
     // Updating the points
-    des_pt_tl = rotatePoint(des_pt_tl, central, 0.3);
-    des_pt_tr = rotatePoint(des_pt_tr, central, 0.3);
-    des_pt_bl = rotatePoint(des_pt_bl, central, 0.3);
-    des_pt_br = rotatePoint(des_pt_br, central, 0.3);
+    des_pt_tl = rotatePoint(des_pt_tl, central, rotate_inc);
+    des_pt_tr = rotatePoint(des_pt_tr, central, rotate_inc);
+    des_pt_bl = rotatePoint(des_pt_bl, central, rotate_inc);
+    des_pt_br = rotatePoint(des_pt_br, central, rotate_inc);
 
     mutex_target.unlock();
     return true;
@@ -323,10 +327,10 @@ namespace merbots_ibvs
     cv::Point2i central(mid_w, mid_h);
 
     // Updating the points
-    des_pt_tl = rotatePoint(des_pt_tl, central, -0.3);
-    des_pt_tr = rotatePoint(des_pt_tr, central, -0.3);
-    des_pt_bl = rotatePoint(des_pt_bl, central, -0.3);
-    des_pt_br = rotatePoint(des_pt_br, central, -0.3);
+    des_pt_tl = rotatePoint(des_pt_tl, central, -rotate_inc);
+    des_pt_tr = rotatePoint(des_pt_tr, central, -rotate_inc);
+    des_pt_bl = rotatePoint(des_pt_bl, central, -rotate_inc);
+    des_pt_br = rotatePoint(des_pt_br, central, -rotate_inc);
 
     mutex_target.unlock();
     return true;
