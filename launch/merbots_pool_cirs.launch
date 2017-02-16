@@ -61,6 +61,7 @@
 
         <remap unless="$(arg enable_republish)" from="~image" to="$(arg camera_ns)/$(arg image)" />
         <remap if="$(arg enable_republish)" from="~image" to="$(arg camera_ns)/$(arg image_repub)" />
+        <remap from="~target" to="/det_and_track/target" />
     </node>
 
     <!-- IBVS recovery -->
