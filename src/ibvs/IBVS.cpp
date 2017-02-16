@@ -21,9 +21,14 @@ namespace merbots_ibvs
 	last_roi_valid(false),
 	init_target(false),
 	enable_vely(true),
+	enable_update_target(true),
 	debug(false),
 	resize_debug_img(0.5),
 	rotate_inc(0.3),
+	min_update_error(1000.0),
+	min_update_time(10.),
+	roi_center_height_multiplier(1.25),
+	max_roi_size(0.4),
 	last_target_update(ros::Time::now())
 	{
 		// Reading calibration information
@@ -142,6 +147,21 @@ namespace merbots_ibvs
 		nh.param("enable_vely", enable_vely, true);
 		ROS_INFO("[Params] Enable linear Y velocity: %s", enable_vely ? "Yes":"No");
 
+		nh.param("enable_update_target", enable_update_target, true);
+		ROS_INFO("[Params] Enable automatic target update: %s", enable_update_target ? "Yes":"No");
+
+		nh.param("min_update_error", min_update_error, 1000.0);
+		ROS_INFO("[Params] Minimun error for automatic target update: %f", min_update_error);
+
+		nh.param("min_update_time", min_update_time, 10.0);
+		ROS_INFO("[Params] Minimun time for automatic target update: %f", min_update_time);
+
+		nh.param("roi_center_height_multiplier", roi_center_height_multiplier, 1.25);
+		ROS_INFO("[Params] ROI center height multiplier: %f", roi_center_height_multiplier);
+
+		nh.param("max_roi_size", max_roi_size, 0.4);
+		ROS_INFO("[Params] Maximum ROI size: %f", max_roi_size);
+
 		std::string target_file;
 		nh.param<std::string>("target_from_file", target_file, "");
 
@@ -150,7 +170,7 @@ namespace merbots_ibvs
 			cv::Mat image = cv::imread(target_file);
 
 			int mid_w = static_cast<int>(width / 2.0);
-			int mid_h = static_cast<int>(height / 2.0);
+			int mid_h = static_cast<int>(height / 2.0 * roi_center_height_multiplier);
 
 			int mid_w_roi = static_cast<int>(image.cols / 2.0);
 			int mid_h_roi = static_cast<int>(image.rows / 2.0);
@@ -308,7 +328,7 @@ namespace merbots_ibvs
     // Updating the current desired ROI
     int mid_w = static_cast<int>(width / 2.0);
     int mid_h = static_cast<int>(height / 2.0);
-    cv::Point2i central(mid_w, mid_h);
+    cv::Point2i central(mid_w, mid_h*roi_center_height_multiplier);
 
     // Updating the points
     des_pt_tl = rotatePoint(des_pt_tl, central, rotate_inc);
@@ -328,7 +348,7 @@ namespace merbots_ibvs
     // Updating the current desired ROI
     int mid_w = static_cast<int>(width / 2.0);
     int mid_h = static_cast<int>(height / 2.0);
-    cv::Point2i central(mid_w, mid_h);
+    cv::Point2i central(mid_w, mid_h*roi_center_height_multiplier);
 
     // Updating the points
     des_pt_tl = rotatePoint(des_pt_tl, central, -rotate_inc);
@@ -376,10 +396,17 @@ namespace merbots_ibvs
 	void IBVS::target_cb(const sensor_msgs::ImageConstPtr& msg)
 	{
 		int mid_w = static_cast<int>(width / 2.0);
-		int mid_h = static_cast<int>(height / 2.0);
+		int mid_h = static_cast<int>(height / 2.0 * roi_center_height_multiplier);
 
 		int mid_w_roi = static_cast<int>(msg->width / 2.0);
 		int mid_h_roi = static_cast<int>(msg->height / 2.0);
+
+		if (mid_w_roi > max_roi_size * width / 2.0) {
+			mid_w_roi = max_roi_size * width / 2.0;
+		}
+		if (mid_h_roi > max_roi_size * height / 2.0) {
+			mid_h_roi = max_roi_size * height / 2.0;
+		}
 
 		mutex_target.lock();
 		// Updating the points
@@ -807,7 +834,10 @@ namespace merbots_ibvs
 		if (in_roi && in_target)
 		{
 			// Assessing if a target update is required
-			if (ibvs_error < 1500.0 && ((ros::Time::now() - last_target_update).toSec() > 5.0))
+			if (enable_update_target
+				&& ibvs_error > 0
+				&& ibvs_error < min_update_error
+				&& ((ros::Time::now() - last_target_update).toSec() > min_update_time))
 			{
 				// Computing the new ROI according to the corresponding target
 				cv::Mat img;
@@ -816,30 +846,45 @@ namespace merbots_ibvs
 				mutex_img.unlock();
 
 				std::vector<int> xlist, ylist;
-	            xlist.push_back(static_cast<int>(u1));
-	            xlist.push_back(static_cast<int>(u2));
-	            xlist.push_back(static_cast<int>(u3));
-	            xlist.push_back(static_cast<int>(u4));
-	            ylist.push_back(static_cast<int>(v1));
-	            ylist.push_back(static_cast<int>(v2));
-	            ylist.push_back(static_cast<int>(v3));
-	            ylist.push_back(static_cast<int>(v4));
+        xlist.push_back(static_cast<int>(u1));
+        xlist.push_back(static_cast<int>(u2));
+        xlist.push_back(static_cast<int>(u3));
+        xlist.push_back(static_cast<int>(u4));
+        ylist.push_back(static_cast<int>(v1));
+        ylist.push_back(static_cast<int>(v2));
+        ylist.push_back(static_cast<int>(v3));
+        ylist.push_back(static_cast<int>(v4));
 
-	            // Determining the bounding box
-	            int xmin = std::max(0, *std::min_element(xlist.begin(), xlist.end()));
-	            int xmax = std::min(img.cols, *std::max_element(xlist.begin(), xlist.end()));
-	            int ymin = std::max(0, *std::min_element(ylist.begin(), ylist.end()));
-	            int ymax = std::min(img.rows, *std::max_element(ylist.begin(), ylist.end()));
+        // Determining the bounding box
+        int xmin = std::max(0, *std::min_element(xlist.begin(), xlist.end()));
+        int xmax = std::min(img.cols, *std::max_element(xlist.begin(), xlist.end()));
+        int ymin = std::max(0, *std::min_element(ylist.begin(), ylist.end()));
+        int ymax = std::min(img.rows, *std::max_element(ylist.begin(), ylist.end()));
 
-	            cv::Rect new_roi(xmin, ymin, xmax - xmin, ymax - ymin);
-	            cv::Mat new_target = img(new_roi);
+        // Limit ROI
+        int mid_w = (xmax + xmin) / 2.0;
+				int mid_h = (ymax + ymin) / 2.0;
+        int mid_w_roi = (xmax - xmin) / 2.0;
+        int mid_h_roi = (ymax - ymin) / 2.0;
+        if (mid_w_roi > max_roi_size * width / 2.0) {
+        	mid_w_roi = max_roi_size * width / 2.0;
+        }
+        if (mid_h_roi > max_roi_size * height / 2.0) {
+        	mid_h_roi = max_roi_size * height / 2.0;
+        }
+        cv::Rect new_roi(mid_w - mid_w_roi,
+        								 mid_h - mid_h_roi,
+        								 mid_w_roi*2.0,
+        								 mid_h_roi*2.0);
 
-	            // Publishing new target
-	            // Converting the image to sensor_msgs::ImagePtr
-	            sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", new_target).toImageMsg();
+        cv::Mat new_target = img(new_roi);
 
-	            // Publishing the new target
-	            target_pub.publish(msg);
+        // Publishing new target
+        // Converting the image to sensor_msgs::ImagePtr
+        sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", new_target).toImageMsg();
+
+        // Publishing the new target
+        target_pub.publish(msg);
 
 				// Updating time
 				last_target_update = ros::Time::now();

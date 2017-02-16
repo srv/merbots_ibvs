@@ -16,7 +16,7 @@
     <!-- Enable/disable -->
     <arg name="enable_vely"         default="true" />
     <arg name="enable_republish"    default="true" />
-    <arg name="enable_recovery"     default="true" />
+    <arg name="enable_recovery"     default="false" />
 
     <!-- <node pkg="tf" type="static_transform_publisher" name="stereo_down_to_left_optical" args="0.0 0.0 0.0 0.0 0.0 0.0 /bumblebee2 /left_optical 100" /> -->
 
@@ -53,6 +53,12 @@
         <param name="target_from_file" value="$(arg target_from_file)" />
         <param name="debug" value="$(arg debug)" />
 
+        <param name="enable_update_target" value="true" />
+        <param name="min_update_error" value="1000.0" />
+        <param name="min_update_time" value="10.0" />
+        <param name="roi_center_height_multiplier" value="1.25" />
+        <param name="max_roi_size" value="0.4" />
+
         <remap from="~twist" to="/cola2_control/body_velocity_req" />
         <remap from="~target" to="/det_and_track/target" />
         <remap from="~roi" to="/det_and_track/roi" />
@@ -61,7 +67,6 @@
 
         <remap unless="$(arg enable_republish)" from="~image" to="$(arg camera_ns)/$(arg image)" />
         <remap if="$(arg enable_republish)" from="~image" to="$(arg camera_ns)/$(arg image_repub)" />
-        <remap from="~target" to="/det_and_track/target" />
     </node>
 
     <!-- IBVS recovery -->

@@ -94,9 +94,14 @@ namespace merbots_ibvs
     bool init_roi;
     bool init_target;
     bool enable_vely;
+    bool enable_update_target;
     bool debug;
     double resize_debug_img;
     double rotate_inc;
+    double min_update_error;
+    double min_update_time;
+    double roi_center_height_multiplier;
+    double max_roi_size;
     ros::Time last_target_update;
   };
 }
