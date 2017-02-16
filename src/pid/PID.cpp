@@ -72,7 +72,7 @@ void PIDController::saturate(cv::Mat_<double>& error_sum, double npix)
         {
             error_sum(i, 0) = npix;
         }
-        else if (error_sum(i, 0) < npix)
+        else if (error_sum(i, 0) < -npix)
         {
             error_sum(i, 0) = -npix;
         }

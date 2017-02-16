@@ -385,8 +385,8 @@ namespace merbots_ibvs
 		des_pt_tr.y = mid_h - mid_h_roi;
 		des_pt_bl.x = mid_w - mid_w_roi;
 		des_pt_bl.y = mid_h + mid_h_roi;
-    des_pt_br.x = mid_w + mid_w_roi;
-    des_pt_br.y = mid_h + mid_h_roi;
+		des_pt_br.x = mid_w + mid_w_roi;
+		des_pt_br.y = mid_h + mid_h_roi;
 
 		if (!init_target)
 		{
@@ -480,7 +480,7 @@ namespace merbots_ibvs
 		// Getting desired features
 		int u1_d, v1_d;
 		int u2_d, v2_d;
-    int u3_d, v3_d;
+		int u3_d, v3_d;
 		int u4_d, v4_d;
 		bool in_target = false;
 		mutex_target.lock();
@@ -490,8 +490,8 @@ namespace merbots_ibvs
 		v2_d = des_pt_tr.y;
 		u3_d = des_pt_bl.x;
 		v3_d = des_pt_bl.y;
-    u4_d = des_pt_br.x;
-    v4_d = des_pt_br.y;
+		u4_d = des_pt_br.x;
+		v4_d = des_pt_br.y;
 		if (init_target)
 		{
 			in_target = true;
@@ -719,10 +719,10 @@ namespace merbots_ibvs
 				bool p3_valid = (u3 < img.cols) && (v3 < img.rows);
 				bool p4_valid = (u4 < img.cols) && (v4 < img.rows);
 
-        bool p1_d_valid = (u1_d < img.cols) && (v1_d < img.rows);
-        bool p2_d_valid = (u2_d < img.cols) && (v2_d < img.rows);
-        bool p3_d_valid = (u3_d < img.cols) && (v3_d < img.rows);
-        bool p4_d_valid = (u4_d < img.cols) && (v4_d < img.rows);
+				bool p1_d_valid = (u1_d < img.cols) && (v1_d < img.rows);
+				bool p2_d_valid = (u2_d < img.cols) && (v2_d < img.rows);
+				bool p3_d_valid = (u3_d < img.cols) && (v3_d < img.rows);
+				bool p4_d_valid = (u4_d < img.cols) && (v4_d < img.rows);
 
 				// Lines
 				if (p1_valid)
@@ -746,14 +746,14 @@ namespace merbots_ibvs
 					cv::line(img, cv::Point(u3, v3), cv::Point(u1, v1), cv::Scalar(0, 255, 0), 2);
 
     			// Printing desired roi
-        if (p1_d_valid && p2_d_valid)
-          cv::line(img, cv::Point(u1_d, v1_d), cv::Point(u2_d, v2_d), cv::Scalar(0, 0, 255), 2);
-        if (p2_d_valid && p4_d_valid)
-          cv::line(img, cv::Point(u2_d, v2_d), cv::Point(u4_d, v4_d), cv::Scalar(0, 0, 255), 2);
-        if (p4_d_valid && p3_d_valid)
-          cv::line(img, cv::Point(u4_d, v4_d), cv::Point(u3_d, v3_d), cv::Scalar(0, 0, 255), 2);
-        if (p3_d_valid && p1_d_valid)
-          cv::line(img, cv::Point(u3_d, v3_d), cv::Point(u1_d, v1_d), cv::Scalar(0, 0, 255), 2);
+				if (p1_d_valid && p2_d_valid)
+					cv::line(img, cv::Point(u1_d, v1_d), cv::Point(u2_d, v2_d), cv::Scalar(0, 0, 255), 2);
+				if (p2_d_valid && p4_d_valid)
+					cv::line(img, cv::Point(u2_d, v2_d), cv::Point(u4_d, v4_d), cv::Scalar(0, 0, 255), 2);
+				if (p4_d_valid && p3_d_valid)
+					cv::line(img, cv::Point(u4_d, v4_d), cv::Point(u3_d, v3_d), cv::Scalar(0, 0, 255), 2);
+				if (p3_d_valid && p1_d_valid)
+					cv::line(img, cv::Point(u3_d, v3_d), cv::Point(u1_d, v1_d), cv::Scalar(0, 0, 255), 2);
 
 				// Plotting the working mode in the image
 				if (status == 0)
