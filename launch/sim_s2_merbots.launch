@@ -9,7 +9,7 @@
     <arg name="debug"               default="true" />
 
     <!-- Visual Servoing params -->
-    <arg name="camera_angle"        default="0.0" /> <!-- Angle WRT vertical -->
+    <arg name="camera_angle"        default="0.7854" /> <!-- Angle WRT vertical -->
     <arg name="robot_frame"         default="sparus2" />
     <arg name="camera_frame"        default="left_optical" />
 
@@ -39,6 +39,10 @@
         <param name="debug" value="false" />
         <param name="target_from_file" value="$(arg target_from_file)" />
         <rosparam command="load" file="$(find merbots_tracking)/launch/objdet_params.yaml" />
+        <param name="camera_angle" value="$(arg camera_angle)" />
+
+        <remap from="~dist" to="/cola2_perception/altitude" />
+        <remap from="~camera_info" to="$(arg camera_ns)/camera_info" />
 
         <remap unless="$(arg enable_republish)" from="~image" to="$(arg camera_ns)/$(arg image)" />
         <remap if="$(arg enable_republish)" from="~image" to="$(arg camera_ns)/$(arg image_repub)" />
@@ -62,6 +66,13 @@
 
         <remap unless="$(arg enable_republish)" from="~image" to="$(arg camera_ns)/$(arg image)" />
         <remap if="$(arg enable_republish)" from="~image" to="$(arg camera_ns)/$(arg image_repub)" />
+    </node>
+
+    <node pkg="merbots_ibvs" type="target_pose_publisher_node" name="target_pose_publisher_node" output="screen">
+        <param name="camera_angle" value="$(arg camera_angle)" />
+        <remap from="~roi" to="/det_and_track/roi" />
+        <remap from="~dist" to="/cola2_perception/altitude" />
+        <remap from="~camera_info" to="$(arg camera_ns)/camera_info" />
     </node>
 
     <!-- IBVS recovery -->

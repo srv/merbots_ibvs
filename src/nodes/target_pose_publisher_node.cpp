@@ -13,21 +13,21 @@ namespace merbots_ibvs {
 class TargetPosePublisher {
  public:
   TargetPosePublisher() : nh_(), nhp_("~") {
-    nh_.param("camera_angle", cam_angle_, 0.0);
+    nhp_.param("camera_angle", cam_angle_, 0.0);
     ROS_INFO("[Params] Camera angle regarding vertical axis: %f", cam_angle_);
     // Distance subscriber
     dist_sub_ = nhp_.subscribe("dist", 1, &TargetPosePublisher::dist_cb, this);
     // Region of Interest subscriber
     roi_sub_ = nhp_.subscribe("roi", 1, &TargetPosePublisher::roi_cb, this);
     // Get camera info
-    ROS_INFO("Waiting for calibration information (10s) ...");
+    ROS_INFO("[TargetPosePublisherNode]: Waiting for calibration information (10s) ...");
     boost::shared_ptr<sensor_msgs::CameraInfo const> sp;
     sp = ros::topic::waitForMessage<sensor_msgs::CameraInfo>("camera_info",
                                                              nhp_,
                                                              ros::Duration(10));
     if (sp == NULL) {
       // No calibration received
-      ROS_FATAL("No calibration received");
+      ROS_FATAL("[TargetPosePublisherNode]: No calibration received");
       ros::shutdown();
     } else {
       // Processing the received calibration
@@ -101,10 +101,6 @@ class TargetPosePublisher {
       transform.setRotation(tf::Quaternion(0, 0, 0, 1));
       tf::StampedTransform st(transform, ros::Time::now(), frame_id, "target");
       br_.sendTransform(st);
-
-      std::cout << "TF: (" << ray_x * t
-                   << ", " << ray_y * t
-                   << ", " << t << ")" << std::endl;
     }
   }
 

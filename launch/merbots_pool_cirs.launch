@@ -69,6 +69,13 @@
         <remap if="$(arg enable_republish)" from="~image" to="$(arg camera_ns)/$(arg image_repub)" />
     </node>
 
+    <node pkg="merbots_ibvs" type="target_pose_publisher_node" name="target_pose_publisher_node" output="screen">
+        <param name="camera_angle" value="$(arg camera_angle)" />
+        <remap from="~roi" to="/det_and_track/roi" />
+        <remap from="~dist" to="/cola2_perception/altitude" />
+        <remap from="~camera_info" to="$(arg camera_ns)/camera_info" />
+    </node>
+
     <!-- IBVS recovery -->
     <node if="$(arg enable_recovery)" pkg="merbots_ibvs_recovery" type="merbots_ibvs_recovery" name="merbots_ibvs_recovery" output="screen">
       <remap from="nav_sts" to="/cola2_navigation/nav_sts"/>
