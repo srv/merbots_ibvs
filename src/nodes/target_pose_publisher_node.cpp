@@ -12,7 +12,8 @@ namespace merbots_ibvs {
 
 class TargetPosePublisher {
  public:
-  TargetPosePublisher() : nh_(), nhp_("~") {
+  TargetPosePublisher() : nh_(), nhp_("~"), fx_(0.0), fy_(0.0), cx_(0.0),
+                          cy_(0.0), zdist_(0.0), cam_angle_(0.0) {
     nhp_.param("camera_angle", cam_angle_, 0.0);
     ROS_INFO("[Params] Camera angle regarding vertical axis: %f", cam_angle_);
     // Distance subscriber
