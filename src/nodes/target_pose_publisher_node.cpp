@@ -5,6 +5,7 @@
 #include <merbots_tracking/TargetPoints.h>
 #include <sensor_msgs/Range.h>
 #include <sensor_msgs/CameraInfo.h>
+#include <visualization_msgs/Marker.h>
 #include <tf/transform_broadcaster.h>
 #include <mutex>
 
@@ -20,6 +21,7 @@ class TargetPosePublisher {
     dist_sub_ = nhp_.subscribe("dist", 1, &TargetPosePublisher::dist_cb, this);
     // Region of Interest subscriber
     roi_sub_ = nhp_.subscribe("roi", 1, &TargetPosePublisher::roi_cb, this);
+    pub_marker_ = nhp_.advertise<visualization_msgs::Marker>("target", 1);
     // Get camera info
     ROS_INFO("[TargetPosePublisherNode]: Waiting for calibration information (10s) ...");
     boost::shared_ptr<sensor_msgs::CameraInfo const> sp;
@@ -98,10 +100,35 @@ class TargetPosePublisher {
                    ground_plane[2]);
       tf::Transform transform;
       transform.setOrigin(tf::Vector3(ray_x * t, ray_y * t, t));
-      std::string frame_id = frame_id_;
       transform.setRotation(tf::Quaternion(0, 0, 0, 1));
-      tf::StampedTransform st(transform, ros::Time::now(), frame_id, "target");
+      tf::StampedTransform st(transform, ros::Time::now(), frame_id_, "target");
       br_.sendTransform(st);
+
+      // Publish security region
+      if (pub_marker_.getNumSubscribers() > 0) {
+        visualization_msgs::Marker marker;
+        marker.header.stamp = ros::Time::now();
+        marker.header.frame_id = frame_id_;
+        marker.ns = "target";
+        marker.id = 0;
+        marker.type = visualization_msgs::Marker::CUBE;
+        marker.action = visualization_msgs::Marker::MODIFY;
+        marker.pose.position.x = ray_x * t;
+        marker.pose.position.y = ray_y * t;
+        marker.pose.position.z = t;
+        marker.pose.orientation.x = 0.0;
+        marker.pose.orientation.y = 0.0;
+        marker.pose.orientation.z = 0.0;
+        marker.pose.orientation.w = 1.0;
+        marker.scale.x = 0.5;
+        marker.scale.y = 0.5;
+        marker.scale.z = 0.5;
+        marker.color.a = 0.5;
+        marker.color.r = 0.0;
+        marker.color.g = 1.0;
+        marker.color.b = 0.0;
+        pub_marker_.publish(marker);
+      }
     }
   }
 
@@ -112,6 +139,7 @@ class TargetPosePublisher {
   ros::NodeHandle nh_, nhp_;
   ros::Subscriber dist_sub_;
   ros::Subscriber roi_sub_;
+  ros::Publisher pub_marker_;
   tf::TransformBroadcaster br_;
 
   std::mutex mutex_zdist;
