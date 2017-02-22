@@ -18,6 +18,7 @@
 #include <tf/transform_listener.h>
 
 #include <merbots_ibvs/pid/PID.h>
+#include <merbots_ibvs/Rotate.h>
 
 namespace merbots_ibvs
 {
@@ -31,8 +32,7 @@ namespace merbots_ibvs
     // Methods
     bool restart(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
     cv::Point2i rotatePoint(const cv::Point2i& pr, const cv::Point2i& pc, double alpha);
-    bool rotateClockwise(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
-    bool rotateCounterclockwise(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
+    bool rotate(merbots_ibvs::Rotate::Request& req, merbots_ibvs::Rotate::Response& res);
     void dist_cb(const sensor_msgs::RangeConstPtr& msg);
     void image_cb(const sensor_msgs::ImageConstPtr& msg);
     void target_cb(const sensor_msgs::ImageConstPtr& msg);
@@ -55,7 +55,7 @@ namespace merbots_ibvs
     image_transport::Publisher target_pub;
     ros::Timer control_timer;
     tf::TransformListener tf_listener;
-    ros::ServiceServer restart_srv, rotate_cw_srv, rotate_ccw_srv;
+    ros::ServiceServer restart_srv, rotate_srv;
     dynamic_reconfigure::Server<merbots_ibvs::IBVSConfig> server;
 
     // Calibration info
@@ -97,7 +97,6 @@ namespace merbots_ibvs
     bool enable_update_target;
     bool debug;
     double resize_debug_img;
-    double rotate_inc;
     double min_update_error;
     double min_update_time;
     double roi_center_height_multiplier;

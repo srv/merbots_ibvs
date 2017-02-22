@@ -24,7 +24,6 @@ namespace merbots_ibvs
 	enable_update_target(true),
 	debug(false),
 	resize_debug_img(0.5),
-	rotate_inc(0.3),
 	min_update_error(1000.0),
 	min_update_time(10.),
 	roi_center_height_multiplier(1.25),
@@ -198,9 +197,6 @@ namespace merbots_ibvs
 		nh.param("resize_debug_img", resize_debug_img, 0.5);
 		ROS_INFO("[Params] Debug image resize: %f", resize_debug_img);
 
-		nh.param("rotate_increment", rotate_inc, 0.3);
-		ROS_INFO("[Params] Rotation increments: %f", rotate_inc);
-
 		std::string robot_frame;
 		nh.param<std::string>("robot_frame", robot_frame, "base_link");
 
@@ -282,8 +278,7 @@ namespace merbots_ibvs
 		restart_srv = nh.advertiseService("restart", &IBVS::restart, this);
 
     // Rotate target TODO
-		rotate_cw_srv = nh.advertiseService("rotate_clockwise", &IBVS::rotateClockwise, this);
-		rotate_ccw_srv = nh.advertiseService("rotate_counterclockwise", &IBVS::rotateCounterclockwise, this);
+		rotate_srv = nh.advertiseService("rotate", &IBVS::rotate, this);
 
 		// Control timer
 		control_timer = nh.createTimer(ros::Duration(1.0 / control_freq), &IBVS::ctrltimer_cb, this);
@@ -320,8 +315,8 @@ namespace merbots_ibvs
 	}
 
 
-  bool IBVS::rotateClockwise(std_srvs::Empty::Request& req,
-                             std_srvs::Empty::Response& res)
+  bool IBVS::rotate(merbots_ibvs::Rotate::Request& req,
+                    merbots_ibvs::Rotate::Response& res)
   {
     mutex_target.lock();
 
@@ -331,30 +326,10 @@ namespace merbots_ibvs
     cv::Point2i central(mid_w, mid_h*roi_center_height_multiplier);
 
     // Updating the points
-    des_pt_tl = rotatePoint(des_pt_tl, central, rotate_inc);
-    des_pt_tr = rotatePoint(des_pt_tr, central, rotate_inc);
-    des_pt_bl = rotatePoint(des_pt_bl, central, rotate_inc);
-    des_pt_br = rotatePoint(des_pt_br, central, rotate_inc);
-
-    mutex_target.unlock();
-    return true;
-  }
-
-  bool IBVS::rotateCounterclockwise(std_srvs::Empty::Request& req,
-                                    std_srvs::Empty::Response& res)
-  {
-    mutex_target.lock();
-
-    // Updating the current desired ROI
-    int mid_w = static_cast<int>(width / 2.0);
-    int mid_h = static_cast<int>(height / 2.0);
-    cv::Point2i central(mid_w, mid_h*roi_center_height_multiplier);
-
-    // Updating the points
-    des_pt_tl = rotatePoint(des_pt_tl, central, -rotate_inc);
-    des_pt_tr = rotatePoint(des_pt_tr, central, -rotate_inc);
-    des_pt_bl = rotatePoint(des_pt_bl, central, -rotate_inc);
-    des_pt_br = rotatePoint(des_pt_br, central, -rotate_inc);
+    des_pt_tl = rotatePoint(des_pt_tl, central, req.data);
+    des_pt_tr = rotatePoint(des_pt_tr, central, req.data);
+    des_pt_bl = rotatePoint(des_pt_bl, central, req.data);
+    des_pt_br = rotatePoint(des_pt_br, central, req.data);
 
     mutex_target.unlock();
     return true;

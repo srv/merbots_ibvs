@@ -37,6 +37,11 @@ add_message_files(
     IBVSInfo.msg
 )
 
+add_service_files(
+    FILES
+    Rotate.srv
+)
+
 # Generating messages
 generate_messages(
     DEPENDENCIES
@@ -70,7 +75,7 @@ add_custom_target(dtarget_merbots_ibvs SOURCES ${HDRS} ${SRCS} ${LNCH})
 add_library(ibvs
   src/pid/PID.cpp
   src/ibvs/IBVS.cpp)
-add_dependencies(ibvs ${PROJECT_NAME}_gencfg)
+add_dependencies(ibvs ${PROJECT_NAME}_gencfg ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(ibvs ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${Boost_LIBRARIES})
 
 # IBVS Nodelet
