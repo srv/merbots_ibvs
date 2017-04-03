@@ -46,6 +46,11 @@ class TargetPosePublisher {
       cy_ =  static_cast<double>(cinfo.K[5]) / by;
       frame_id_ = cinfo.header.frame_id;
     }
+
+
+    nhp_.param("frame_id", frame_id_, std::string(""));
+
+    ROS_INFO_STREAM("Frame id: " << frame_id_);
   }
 
  private:
@@ -136,6 +141,7 @@ class TargetPosePublisher {
   double zdist_;
   double cam_angle_;
   std::string frame_id_;
+  std::string camera_frame_;
   ros::NodeHandle nh_, nhp_;
   ros::Subscriber dist_sub_;
   ros::Subscriber roi_sub_;
